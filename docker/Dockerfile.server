@@ -99,5 +99,18 @@ RUN echo "Library path: $LD_LIBRARY_PATH" && \
 # Expose the server port
 EXPOSE 6767
 
-# Default command
-CMD ["/slam-share-server/simple-server", "6767", "/slam-share-server/received-data"]
+# Create startup script that ensures directories exist
+RUN echo '#!/bin/bash' > /slam-share-server/run-server.sh && \
+    echo 'echo "=== SLAM-Share Server Starting ==="' >> /slam-share-server/run-server.sh && \
+    echo 'echo "Ensuring directories exist..."' >> /slam-share-server/run-server.sh && \
+    echo 'mkdir -p /slam-share-server/received-data' >> /slam-share-server/run-server.sh && \
+    echo 'mkdir -p /slam-share-server/processed-data' >> /slam-share-server/run-server.sh && \
+    echo 'mkdir -p /slam-share-server/logs' >> /slam-share-server/run-server.sh && \
+    echo 'chmod 777 /slam-share-server/received-data' >> /slam-share-server/run-server.sh && \
+    echo 'chmod 777 /slam-share-server/processed-data' >> /slam-share-server/run-server.sh && \
+    echo 'echo "Starting server on port ${1:-6767} with work directory ${2:-/slam-share-server/received-data}"' >> /slam-share-server/run-server.sh && \
+    echo 'exec /slam-share-server/simple-server "$@"' >> /slam-share-server/run-server.sh && \
+    chmod +x /slam-share-server/run-server.sh
+
+# Default command - use the wrapper script
+CMD ["/slam-share-server/run-server.sh", "6767", "/slam-share-server/received-data"]
