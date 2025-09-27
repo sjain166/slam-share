@@ -30,6 +30,10 @@ RUN apt-get update && apt-get install -y \
     # Python for trajectory alignment (as specified by owner)
     python \
     python-numpy \
+    # OpenSSL development headers (required by System.cc)
+    libssl-dev \
+    # Standard C library development headers
+    libc6-dev \
     # Clean up apt cache to reduce image size
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -238,14 +242,18 @@ RUN echo "=== Pangolin Verification ===" && \
 
 # Install Boost libraries - Ubuntu 18.04 includes Boost 1.65.1 (exceeds 1.58.0 requirement)
 RUN apt-get update && apt-get install -y \
-    # Core Boost libraries
+    # Core Boost libraries (includes all required components)
     libboost-all-dev \
-    # Specific components required by SLAM-Share
+    # Specific components explicitly required by SLAM-Share CMakeLists.txt and source code
     libboost-system-dev \
     libboost-thread-dev \
     libboost-filesystem-dev \
     libboost-serialization-dev \
     libboost-log-dev \
+    libboost-log-setup-dev \
+    # Threading support libraries (pthread is included in build-essential)
+    # Additional system libraries for crypto operations
+    libcrypto++-dev \
     # Clean up apt cache
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
