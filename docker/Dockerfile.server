@@ -74,11 +74,16 @@ RUN echo '#include <iostream>' > /slam-share-server/simple-server.cpp && \
     echo '    return 0;' >> /slam-share-server/simple-server.cpp && \
     echo '}' >> /slam-share-server/simple-server.cpp
 
+# Set up library path for runtime
+ENV LD_LIBRARY_PATH=/slam-share/lib:/slam-share/Thirdparty/DBoW2/lib:/slam-share/Thirdparty/g2o/lib:/usr/local/lib:$LD_LIBRARY_PATH
+
 # Build the simple server
 RUN cd /slam-share-server && \
     g++ -std=c++11 simple-server.cpp -o simple-server \
     -I/slam-share/include \
     -L/slam-share/lib \
+    -L/slam-share/Thirdparty/DBoW2/lib \
+    -L/slam-share/Thirdparty/g2o/lib \
     -lORB_SLAM3 \
     -lboost_system \
     -lboost_filesystem \
@@ -86,6 +91,10 @@ RUN cd /slam-share-server && \
     -lboost_thread \
     -lpthread \
     && echo "Simple server built successfully"
+
+# Verify library paths are set correctly
+RUN echo "Library path: $LD_LIBRARY_PATH" && \
+    ldd /slam-share-server/simple-server | head -10
 
 # Expose the server port
 EXPOSE 6767
