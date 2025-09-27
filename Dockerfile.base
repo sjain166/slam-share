@@ -250,8 +250,7 @@ RUN apt-get update && apt-get install -y \
     libboost-filesystem-dev \
     libboost-serialization-dev \
     libboost-log-dev \
-    libboost-log-setup-dev \
-    # Threading support libraries (pthread is included in build-essential)
+    # Note: log_setup is included in libboost-log-dev in Ubuntu 18.04
     # Additional system libraries for crypto operations
     libcrypto++-dev \
     # Clean up apt cache
