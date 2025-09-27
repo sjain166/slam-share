@@ -1,0 +1,110 @@
+# SLAM-Share Client Container
+# Based on our successful base image with all dependencies
+FROM slam-share:latest
+
+# Set client working directory
+WORKDIR /slam-share-client
+
+# Copy client-specific configuration
+COPY docker/client-config/ ./config/
+
+# Create directories for input data and results
+RUN mkdir -p /slam-share-client/input-data && \
+    mkdir -p /slam-share-client/results && \
+    mkdir -p /slam-share-client/logs && \
+    mkdir -p /slam-share-client/datasets
+
+# Set environment variables for client
+ENV SLAM_SERVER_HOST=slam-server
+ENV SLAM_SERVER_PORT=6767
+ENV SLAM_CLIENT_MODE=monocular
+ENV SLAM_CLIENT_LOG_LEVEL=info
+
+# Create client startup script
+RUN echo '#!/bin/bash' > /slam-share-client/start-client.sh && \
+    echo 'echo "=== SLAM-Share Client Starting ===" ' >> /slam-share-client/start-client.sh && \
+    echo 'echo "Server: $SLAM_SERVER_HOST:$SLAM_SERVER_PORT"' >> /slam-share-client/start-client.sh && \
+    echo 'echo "Mode: $SLAM_CLIENT_MODE"' >> /slam-share-client/start-client.sh && \
+    echo 'echo "Log Level: $SLAM_CLIENT_LOG_LEVEL"' >> /slam-share-client/start-client.sh && \
+    echo 'echo "==================================="' >> /slam-share-client/start-client.sh && \
+    echo 'cd /slam-share' >> /slam-share-client/start-client.sh && \
+    echo '# Wait for server to be available' >> /slam-share-client/start-client.sh && \
+    echo 'echo "Waiting for server at $SLAM_SERVER_HOST:$SLAM_SERVER_PORT..."' >> /slam-share-client/start-client.sh && \
+    echo 'while ! nc -z $SLAM_SERVER_HOST $SLAM_SERVER_PORT; do sleep 1; done' >> /slam-share-client/start-client.sh && \
+    echo 'echo "Server is available!"' >> /slam-share-client/start-client.sh && \
+    echo '# Run SLAM processing with network communication' >> /slam-share-client/start-client.sh && \
+    echo './Examples/Monocular/mono_tum_vi /slam-share/Vocabulary/ORBvoc.txt /slam-share-client/config/TUM_VI.yaml /slam-share-client/input-data /slam-share-client/results --server-host $SLAM_SERVER_HOST --server-port $SLAM_SERVER_PORT' >> /slam-share-client/start-client.sh && \
+    chmod +x /slam-share-client/start-client.sh
+
+# Create client configuration
+RUN mkdir -p /slam-share-client/config && \
+    echo '# SLAM-Share Client Configuration' > /slam-share-client/config/TUM_VI.yaml && \
+    echo '# Camera intrinsics (TUM VI dataset compatible)' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo 'Camera.fx: 190.97847' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo 'Camera.fy: 190.97847' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo 'Camera.cx: 254.93170' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo 'Camera.cy: 256.89752' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo '# Distortion parameters' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo 'Camera.k1: 0.0034' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo 'Camera.k2: -0.0020' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo 'Camera.p1: 0.0' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo 'Camera.p2: 0.0' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo '# Client settings' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo 'Client.ServerHost: slam-server' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo 'Client.ServerPort: 6767' >> /slam-share-client/config/TUM_VI.yaml && \
+    echo 'Client.Mode: monocular' >> /slam-share-client/config/TUM_VI.yaml
+
+# Create a simple client test application
+RUN echo '#include <iostream>' > /slam-share-client/simple-client.cpp && \
+    echo '#include <string>' >> /slam-share-client/simple-client.cpp && \
+    echo '#include <boost/asio.hpp>' >> /slam-share-client/simple-client.cpp && \
+    echo '#include "send_file_cpp.h"' >> /slam-share-client/simple-client.cpp && \
+    echo '' >> /slam-share-client/simple-client.cpp && \
+    echo 'int main(int argc, char* argv[]) {' >> /slam-share-client/simple-client.cpp && \
+    echo '    try {' >> /slam-share-client/simple-client.cpp && \
+    echo '        std::cout << "=== SLAM-Share Client Starting ===" << std::endl;' >> /slam-share-client/simple-client.cpp && \
+    echo '        ' >> /slam-share-client/simple-client.cpp && \
+    echo '        std::string serverHost = "slam-server";' >> /slam-share-client/simple-client.cpp && \
+    echo '        std::string serverPort = "6767";' >> /slam-share-client/simple-client.cpp && \
+    echo '        std::string testFile = "/slam-share-client/config/TUM_VI.yaml";' >> /slam-share-client/simple-client.cpp && \
+    echo '        ' >> /slam-share-client/simple-client.cpp && \
+    echo '        if (argc > 1) serverHost = argv[1];' >> /slam-share-client/simple-client.cpp && \
+    echo '        if (argc > 2) serverPort = argv[2];' >> /slam-share-client/simple-client.cpp && \
+    echo '        if (argc > 3) testFile = argv[3];' >> /slam-share-client/simple-client.cpp && \
+    echo '        ' >> /slam-share-client/simple-client.cpp && \
+    echo '        std::string serverAddress = serverHost + ":" + serverPort;' >> /slam-share-client/simple-client.cpp && \
+    echo '        ' >> /slam-share-client/simple-client.cpp && \
+    echo '        std::cout << "Server: " << serverAddress << std::endl;' >> /slam-share-client/simple-client.cpp && \
+    echo '        std::cout << "Test File: " << testFile << std::endl;' >> /slam-share-client/simple-client.cpp && \
+    echo '        ' >> /slam-share-client/simple-client.cpp && \
+    echo '        // Test connection by sending configuration file' >> /slam-share-client/simple-client.cpp && \
+    echo '        send_data(testFile, serverAddress);' >> /slam-share-client/simple-client.cpp && \
+    echo '        ' >> /slam-share-client/simple-client.cpp && \
+    echo '        std::cout << "File transfer completed successfully!" << std::endl;' >> /slam-share-client/simple-client.cpp && \
+    echo '    } catch (std::exception& e) {' >> /slam-share-client/simple-client.cpp && \
+    echo '        std::cerr << "Exception: " << e.what() << std::endl;' >> /slam-share-client/simple-client.cpp && \
+    echo '    }' >> /slam-share-client/simple-client.cpp && \
+    echo '    return 0;' >> /slam-share-client/simple-client.cpp && \
+    echo '}' >> /slam-share-client/simple-client.cpp
+
+# Build the simple client
+RUN cd /slam-share-client && \
+    g++ -std=c++11 simple-client.cpp -o simple-client \
+    -I/slam-share/include \
+    -I/slam-share/Examples/Monocular \
+    -L/slam-share/lib \
+    -lORB_SLAM3 \
+    -lboost_system \
+    -lboost_filesystem \
+    -lboost_log \
+    -lboost_thread \
+    -lboost_iostreams \
+    -lpthread \
+    && echo "Simple client built successfully"
+
+# Install netcat for server connectivity testing
+RUN apt-get update && apt-get install -y netcat && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Default command - wait for server and run client
+CMD ["/slam-share-client/simple-client", "slam-server", "6767", "/slam-share-client/config/TUM_VI.yaml"]

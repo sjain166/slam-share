@@ -1,0 +1,97 @@
+# SLAM-Share Server Container
+# Based on our successful base image with all dependencies
+FROM slam-share:latest
+
+# Set server working directory
+WORKDIR /slam-share-server
+
+# Copy server-specific configuration
+COPY docker/server-config/ ./config/
+
+# Create directories for received data
+RUN mkdir -p /slam-share-server/received-data && \
+    mkdir -p /slam-share-server/processed-data && \
+    mkdir -p /slam-share-server/logs
+
+# Set environment variables for server
+ENV SLAM_SERVER_PORT=6767
+ENV SLAM_SERVER_WORK_DIR=/slam-share-server/received-data
+ENV SLAM_SERVER_LOG_LEVEL=info
+
+# Create server startup script
+RUN echo '#!/bin/bash' > /slam-share-server/start-server.sh && \
+    echo 'echo "=== SLAM-Share Server Starting ===" ' >> /slam-share-server/start-server.sh && \
+    echo 'echo "Port: $SLAM_SERVER_PORT"' >> /slam-share-server/start-server.sh && \
+    echo 'echo "Work Directory: $SLAM_SERVER_WORK_DIR"' >> /slam-share-server/start-server.sh && \
+    echo 'echo "Log Level: $SLAM_SERVER_LOG_LEVEL"' >> /slam-share-server/start-server.sh && \
+    echo 'echo "==================================="' >> /slam-share-server/start-server.sh && \
+    echo 'cd /slam-share' >> /slam-share-server/start-server.sh && \
+    echo '# Run a simple TCP server using our built examples' >> /slam-share-server/start-server.sh && \
+    echo './Examples/Monocular/mono_tum_vi /slam-share/Vocabulary/ORBvoc.txt /slam-share-server/config/TUM_VI.yaml --server-mode --port $SLAM_SERVER_PORT --work-dir $SLAM_SERVER_WORK_DIR' >> /slam-share-server/start-server.sh && \
+    chmod +x /slam-share-server/start-server.sh
+
+# Create a simple server test configuration
+RUN mkdir -p /slam-share-server/config && \
+    echo '# SLAM-Share Server Configuration' > /slam-share-server/config/TUM_VI.yaml && \
+    echo '# Camera intrinsics (TUM VI dataset compatible)' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo 'Camera.fx: 190.97847' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo 'Camera.fy: 190.97847' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo 'Camera.cx: 254.93170' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo 'Camera.cy: 256.89752' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo '# Distortion parameters' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo 'Camera.k1: 0.0034' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo 'Camera.k2: -0.0020' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo 'Camera.p1: 0.0' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo 'Camera.p2: 0.0' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo '# Server settings' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo 'Server.Port: 6767' >> /slam-share-server/config/TUM_VI.yaml && \
+    echo 'Server.WorkDirectory: /slam-share-server/received-data' >> /slam-share-server/config/TUM_VI.yaml
+
+# Create a simple server executable based on existing code
+RUN echo '#include <iostream>' > /slam-share-server/simple-server.cpp && \
+    echo '#include <string>' >> /slam-share-server/simple-server.cpp && \
+    echo '#include "Server.h"' >> /slam-share-server/simple-server.cpp && \
+    echo '#include <boost/asio.hpp>' >> /slam-share-server/simple-server.cpp && \
+    echo '' >> /slam-share-server/simple-server.cpp && \
+    echo 'int main(int argc, char* argv[]) {' >> /slam-share-server/simple-server.cpp && \
+    echo '    try {' >> /slam-share-server/simple-server.cpp && \
+    echo '        std::cout << "=== SLAM-Share Server Starting ===" << std::endl;' >> /slam-share-server/simple-server.cpp && \
+    echo '        ' >> /slam-share-server/simple-server.cpp && \
+    echo '        short port = 6767;' >> /slam-share-server/simple-server.cpp && \
+    echo '        std::string workDir = "/slam-share-server/received-data";' >> /slam-share-server/simple-server.cpp && \
+    echo '        ' >> /slam-share-server/simple-server.cpp && \
+    echo '        if (argc > 1) port = std::atoi(argv[1]);' >> /slam-share-server/simple-server.cpp && \
+    echo '        if (argc > 2) workDir = argv[2];' >> /slam-share-server/simple-server.cpp && \
+    echo '        ' >> /slam-share-server/simple-server.cpp && \
+    echo '        std::cout << "Port: " << port << std::endl;' >> /slam-share-server/simple-server.cpp && \
+    echo '        std::cout << "Work Directory: " << workDir << std::endl;' >> /slam-share-server/simple-server.cpp && \
+    echo '        ' >> /slam-share-server/simple-server.cpp && \
+    echo '        boost::asio::io_service ioService;' >> /slam-share-server/simple-server.cpp && \
+    echo '        Server server(ioService, port, workDir);' >> /slam-share-server/simple-server.cpp && \
+    echo '        ' >> /slam-share-server/simple-server.cpp && \
+    echo '        std::cout << "Server listening on port " << port << std::endl;' >> /slam-share-server/simple-server.cpp && \
+    echo '        ioService.run();' >> /slam-share-server/simple-server.cpp && \
+    echo '    } catch (std::exception& e) {' >> /slam-share-server/simple-server.cpp && \
+    echo '        std::cerr << "Exception: " << e.what() << std::endl;' >> /slam-share-server/simple-server.cpp && \
+    echo '    }' >> /slam-share-server/simple-server.cpp && \
+    echo '    return 0;' >> /slam-share-server/simple-server.cpp && \
+    echo '}' >> /slam-share-server/simple-server.cpp
+
+# Build the simple server
+RUN cd /slam-share-server && \
+    g++ -std=c++11 simple-server.cpp -o simple-server \
+    -I/slam-share/include \
+    -L/slam-share/lib \
+    -lORB_SLAM3 \
+    -lboost_system \
+    -lboost_filesystem \
+    -lboost_log \
+    -lboost_thread \
+    -lpthread \
+    && echo "Simple server built successfully"
+
+# Expose the server port
+EXPOSE 6767
+
+# Default command
+CMD ["/slam-share-server/simple-server", "6767", "/slam-share-server/received-data"]
