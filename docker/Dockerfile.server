@@ -5,9 +5,6 @@ FROM slam-share:latest
 # Set server working directory
 WORKDIR /slam-share-server
 
-# Copy server-specific configuration
-COPY docker/server-config/ ./config/
-
 # Create directories for received data
 RUN mkdir -p /slam-share-server/received-data && \
     mkdir -p /slam-share-server/processed-data && \
