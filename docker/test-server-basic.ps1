@@ -87,9 +87,9 @@ try {
     try {
         $portTest = Test-NetConnection -ComputerName localhost -Port $SERVER_PORT -InformationLevel Quiet -WarningAction SilentlyContinue
         if ($portTest) {
-            Write-Host "✅ Port $SERVER_PORT: ACCESSIBLE" -ForegroundColor Green
+            Write-Host "✅ Port ${SERVER_PORT} ACCESSIBLE" -ForegroundColor Green
         } else {
-            Write-Host "⚠️  Port $SERVER_PORT: May need client connection" -ForegroundColor Yellow
+            Write-Host "⚠️  Port ${SERVER_PORT} May need client connection" -ForegroundColor Yellow
         }
     } catch {
         Write-Host "⚠️  Port test completed" -ForegroundColor Yellow
