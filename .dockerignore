@@ -44,7 +44,7 @@ dataset*/
 slam_dataset/
 **/dataset*/
 
-# Generated vocabulary files (will be extracted during build)
+# Generated vocabulary files (will be extracted during build - keep the .tar.gz)
 Vocabulary/ORBvoc.txt
 
 # Object files and libraries
@@ -54,10 +54,19 @@ Vocabulary/ORBvoc.txt
 *.dylib
 *.dll
 
-# Executables (will be built in container)
-Examples/*/mono_*
-Examples/*/stereo_*
-Examples/*/rgbd_*
+# Executables (built binaries only, keep source files)
+Examples/*/mono_tum
+Examples/*/mono_kitti
+Examples/*/mono_euroc
+Examples/*/mono_tum_vi
+Examples/*/mono_inertial_euroc
+Examples/*/mono_inertial_tum_vi
+Examples/*/stereo_kitti
+Examples/*/stereo_euroc
+Examples/*/stereo_tum_vi
+Examples/*/stereo_inertial_euroc
+Examples/*/stereo_inertial_tum_vi
+Examples/*/rgbd_tum
 lib/
 
 # Evaluation and script outputs
