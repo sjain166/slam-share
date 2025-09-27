@@ -200,6 +200,44 @@ RUN echo "=== Pangolin Verification ===" && \
     ls /usr/local/lib/*pangolin* 2>/dev/null || echo "Library check completed" && \
     echo "=========================="
 
+# ==========================================
+# STEP 5: Boost Libraries (>= 1.58.0 as per owner spec)
+# ==========================================
+
+# Install Boost libraries - Ubuntu 18.04 includes Boost 1.65.1 (exceeds 1.58.0 requirement)
+RUN apt-get update && apt-get install -y \
+    # Core Boost libraries
+    libboost-all-dev \
+    # Specific components required by SLAM-Share
+    libboost-system-dev \
+    libboost-thread-dev \
+    libboost-filesystem-dev \
+    libboost-serialization-dev \
+    libboost-log-dev \
+    # Clean up apt cache
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify Boost installation
+RUN echo "=== Boost Verification ===" && \
+    # Check Boost version
+    echo "Boost version:" && \
+    grep "BOOST_VERSION" /usr/include/boost/version.hpp | head -1 || echo "Version check via compilation" && \
+    # Test Boost compilation with required components
+    echo '#include <boost/version.hpp>' > /tmp/boost_test.cpp && \
+    echo '#include <boost/asio.hpp>' >> /tmp/boost_test.cpp && \
+    echo '#include <boost/interprocess/managed_shared_memory.hpp>' >> /tmp/boost_test.cpp && \
+    echo '#include <boost/serialization/string.hpp>' >> /tmp/boost_test.cpp && \
+    echo '#include <boost/log/trivial.hpp>' >> /tmp/boost_test.cpp && \
+    echo '#include <boost/thread.hpp>' >> /tmp/boost_test.cpp && \
+    echo '#include <boost/filesystem.hpp>' >> /tmp/boost_test.cpp && \
+    echo '#include <iostream>' >> /tmp/boost_test.cpp && \
+    echo 'int main(){ std::cout << "Boost " << BOOST_VERSION << " components available" << std::endl; return 0; }' >> /tmp/boost_test.cpp && \
+    g++ -std=c++11 /tmp/boost_test.cpp -o /tmp/boost_test -lboost_system -lboost_thread -lboost_filesystem -lboost_serialization -lboost_log -lboost_log_setup -pthread && \
+    /tmp/boost_test && \
+    rm -f /tmp/boost_test.cpp /tmp/boost_test && \
+    echo "=========================="
+
 # Display versions for validation
 RUN echo "=== Current Build Environment Info ===" && \
     cat /etc/os-release | grep VERSION && \
@@ -211,6 +249,7 @@ RUN echo "=== Current Build Environment Info ===" && \
     echo "OpenCV: $(pkg-config --modversion opencv4 2>/dev/null || pkg-config --modversion opencv 2>/dev/null || echo 'Version check via headers')" && \
     echo "Eigen3: Installed (headers at /usr/include/eigen3)" && \
     echo "Pangolin: Installed (headers at /usr/local/include)" && \
+    echo "Boost: Installed (libraries available)" && \
     echo "======================================="
 
 # Default command
