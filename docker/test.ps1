@@ -88,13 +88,7 @@ try {
 
     # Test 7: OpenCV C++ compilation
     Write-Host "`nTest 2.3: OpenCV C++ compilation..." -ForegroundColor Yellow
-    $opencvCppTest = docker run --rm $FULL_IMAGE bash -c '
-        echo "#include <opencv2/opencv.hpp>" > test_opencv.cpp &&
-        echo "#include <iostream>" >> test_opencv.cpp &&
-        echo "int main(){ cv::Mat img; std::cout << \"OpenCV compilation successful\" << std::endl; return 0; }" >> test_opencv.cpp &&
-        g++ -std=c++11 test_opencv.cpp -o test_opencv $(pkg-config --cflags --libs opencv4 2>/dev/null || pkg-config --cflags --libs opencv 2>/dev/null || echo "-lopencv_core -lopencv_imgproc") 2>/dev/null &&
-        ./test_opencv 2>/dev/null
-    '
+    $opencvCppTest = docker run --rm $FULL_IMAGE bash -c "echo '#include <opencv2/opencv.hpp>' > test_opencv.cpp && echo '#include <iostream>' >> test_opencv.cpp && echo 'int main(){ cv::Mat img; std::cout << \"OpenCV compilation successful\" << std::endl; return 0; }' >> test_opencv.cpp && g++ -std=c++11 test_opencv.cpp -o test_opencv `$(pkg-config --cflags --libs opencv4 2>/dev/null || pkg-config --cflags --libs opencv 2>/dev/null || echo '-lopencv_core -lopencv_imgproc') 2>/dev/null && ./test_opencv 2>/dev/null"
 
     if ($opencvCppTest -match "successful") {
         Write-Host "✅ OpenCV C++ compilation: PASSED" -ForegroundColor Green
@@ -131,13 +125,7 @@ try {
 
     # Test 10: Eigen3 C++ compilation
     Write-Host "`nTest 3.2: Eigen3 C++ compilation..." -ForegroundColor Yellow
-    $eigenCppTest = docker run --rm $FULL_IMAGE bash -c '
-        echo "#include <Eigen/Dense>" > test_eigen.cpp &&
-        echo "#include <iostream>" >> test_eigen.cpp &&
-        echo "int main(){ Eigen::Vector3d v(1,2,3); std::cout << \"Eigen3 compilation successful\" << std::endl; return 0; }" >> test_eigen.cpp &&
-        g++ -std=c++11 test_eigen.cpp -o test_eigen -I/usr/include/eigen3 &&
-        ./test_eigen
-    '
+    $eigenCppTest = docker run --rm $FULL_IMAGE bash -c "echo '#include <Eigen/Dense>' > test_eigen.cpp && echo '#include <iostream>' >> test_eigen.cpp && echo 'int main(){ Eigen::Vector3d v(1,2,3); std::cout << \"Eigen3 compilation successful\" << std::endl; return 0; }' >> test_eigen.cpp && g++ -std=c++11 test_eigen.cpp -o test_eigen -I/usr/include/eigen3 && ./test_eigen"
 
     if ($eigenCppTest -match "successful") {
         Write-Host "✅ Eigen3 C++ compilation: PASSED" -ForegroundColor Green
