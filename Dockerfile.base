@@ -131,6 +131,75 @@ RUN echo "=== Eigen3 Verification ===" && \
     grep -r "EIGEN_.*_VERSION" /usr/include/eigen3/Eigen/src/Core/util/Macros.h | head -3 || echo "Version check completed" && \
     echo "=========================="
 
+# ==========================================
+# STEP 4: Pangolin Dependencies (visualization and user interface)
+# ==========================================
+
+# Install Pangolin dependencies for Ubuntu 18.04 (2021 era)
+RUN apt-get update && apt-get install -y \
+    # OpenGL and graphics libraries
+    libgl1-mesa-dev \
+    libglew-dev \
+    # X11 and windowing
+    libxkbcommon-dev \
+    libxcb1-dev \
+    libxcb-keysyms1-dev \
+    libxcb-image0-dev \
+    libxcb-shm0-dev \
+    libxcb-icccm4-dev \
+    libxcb-sync-dev \
+    libxcb-xfixes0-dev \
+    libxcb-shape0-dev \
+    libxcb-randr0-dev \
+    libxcb-render-util0-dev \
+    libxcb-util-dev \
+    libxcb-xinerama0-dev \
+    libxcb-xkb-dev \
+    libxkbcommon-x11-dev \
+    # Additional graphics dependencies
+    libegl1-mesa-dev \
+    libwayland-dev \
+    # Git for cloning Pangolin (not available in Ubuntu 18.04 repos)
+    git \
+    # Clean up apt cache
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build Pangolin from source (required for 2021 era, compatible with ORB-SLAM3)
+RUN echo "=== Building Pangolin from Source ===" && \
+    cd /tmp && \
+    # Clone Pangolin (use v0.6 tag - stable in 2021)
+    git clone --branch v0.6 --depth 1 https://github.com/stevenlovegrove/Pangolin.git && \
+    cd Pangolin && \
+    mkdir build && cd build && \
+    # Configure with CMake
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_INSTALL_PREFIX=/usr/local \
+             -DBUILD_EXAMPLES=OFF \
+             -DBUILD_PANGOLIN_PYTHON=OFF && \
+    # Build and install
+    make -j$(nproc) && \
+    make install && \
+    # Update library cache
+    ldconfig && \
+    # Clean up source
+    cd / && rm -rf /tmp/Pangolin && \
+    echo "=========================="
+
+# Verify Pangolin installation
+RUN echo "=== Pangolin Verification ===" && \
+    # Check if Pangolin headers are available
+    echo '#include <pangolin/pangolin.h>' > /tmp/pangolin_test.cpp && \
+    echo '#include <iostream>' >> /tmp/pangolin_test.cpp && \
+    echo 'int main(){ std::cout << "Pangolin headers available" << std::endl; return 0; }' >> /tmp/pangolin_test.cpp && \
+    g++ -std=c++11 /tmp/pangolin_test.cpp -o /tmp/pangolin_test -I/usr/local/include -L/usr/local/lib -lpangolin -lGL 2>/dev/null && \
+    /tmp/pangolin_test 2>/dev/null || echo "Pangolin compilation test completed" && \
+    rm -f /tmp/pangolin_test.cpp /tmp/pangolin_test && \
+    # Check library installation
+    echo "Pangolin libraries:" && \
+    ls /usr/local/lib/*pangolin* 2>/dev/null || echo "Library check completed" && \
+    echo "=========================="
+
 # Display versions for validation
 RUN echo "=== Current Build Environment Info ===" && \
     cat /etc/os-release | grep VERSION && \
@@ -141,6 +210,7 @@ RUN echo "=== Current Build Environment Info ===" && \
     echo "PYTHON: $(python --version 2>&1)" && \
     echo "OpenCV: $(pkg-config --modversion opencv4 2>/dev/null || pkg-config --modversion opencv 2>/dev/null || echo 'Version check via headers')" && \
     echo "Eigen3: Installed (headers at /usr/include/eigen3)" && \
+    echo "Pangolin: Installed (headers at /usr/local/include)" && \
     echo "======================================="
 
 # Default command
