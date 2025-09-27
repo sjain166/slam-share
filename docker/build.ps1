@@ -11,8 +11,8 @@ $IMAGE_TAG = "latest"
 $DOCKERFILE = "Dockerfile.base"
 
 # Current step info
-$CURRENT_STEP = "Step 1 (Base) + Step 2 (OpenCV) + Step 3 (Eigen3) + Step 4 (Pangolin) + Step 5 (Boost)"
-$CURRENT_DEPENDENCIES = "Ubuntu 18.04, Build Tools, OpenCV 3.2, Eigen3 3.3+, Pangolin v0.6, Boost 1.65+"
+$CURRENT_STEP = "Complete SLAM-Share Build: Dependencies + System"
+$CURRENT_DEPENDENCIES = "Ubuntu 18.04, Build Tools, OpenCV 3.2, Eigen3 3.3+, Pangolin v0.6, Boost 1.65+, SLAM-Share System"
 
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "SLAM-Share Docker Incremental Build" -ForegroundColor Cyan

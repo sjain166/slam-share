@@ -238,8 +238,57 @@ RUN echo "=== Boost Verification ===" && \
     rm -f /tmp/boost_test.cpp /tmp/boost_test && \
     echo "=========================="
 
-# Display versions for validation
-RUN echo "=== Current Build Environment Info ===" && \
+# ==========================================
+# STEP 6: Build SLAM-Share System (Following owner's build.sh)
+# ==========================================
+
+# Copy source code into container
+COPY . /slam-share/
+
+# Extract vocabulary (as per owner's build.sh)
+RUN echo "=== Extracting ORB Vocabulary ===" && \
+    cd /slam-share/Vocabulary && \
+    tar -xf ORBvoc.txt.tar.gz && \
+    echo "Vocabulary extracted successfully" && \
+    echo "=========================="
+
+# Build Thirdparty DBoW2 (as per owner's build.sh)
+RUN echo "=== Building Thirdparty/DBoW2 ===" && \
+    cd /slam-share/Thirdparty/DBoW2 && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    echo "DBoW2 built successfully" && \
+    echo "=========================="
+
+# Build Thirdparty g2o (as per owner's build.sh)
+RUN echo "=== Building Thirdparty/g2o ===" && \
+    cd /slam-share/Thirdparty/g2o && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    echo "g2o built successfully" && \
+    echo "=========================="
+
+# Build main SLAM-Share library (as per owner's build.sh)
+RUN echo "=== Building SLAM-Share Main Library ===" && \
+    cd /slam-share && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    echo "SLAM-Share library built successfully" && \
+    echo "=========================="
+
+# Verify build results
+RUN echo "=== Build Verification ===" && \
+    echo "Checking built libraries:" && \
+    ls -la /slam-share/lib/ && \
+    echo "Checking example executables:" && \
+    find /slam-share/Examples -name "mono_*" -o -name "stereo_*" -o -name "rgbd_*" | head -5 && \
+    echo "=========================="
+
+# Display final build info
+RUN echo "=== SLAM-Share Build Complete ===" && \
     cat /etc/os-release | grep VERSION && \
     echo "CMAKE: $(cmake --version | head -1)" && \
     echo "GCC: $(gcc --version | head -1)" && \
@@ -250,6 +299,7 @@ RUN echo "=== Current Build Environment Info ===" && \
     echo "Eigen3: Installed (headers at /usr/include/eigen3)" && \
     echo "Pangolin: Installed (headers at /usr/local/include)" && \
     echo "Boost: Installed (libraries available)" && \
+    echo "SLAM-Share: Built successfully" && \
     echo "======================================="
 
 # Default command
