@@ -1,0 +1,65 @@
+# SLAM-Share Docker Build Context Optimization
+# Exclude unnecessary files from Docker build context
+
+# Build directories
+build/
+build*/
+**/build/
+**/build*/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git files
+.git/
+.gitignore
+.gitmodules
+
+# Documentation (keep only essential README)
+*.md
+!README.md
+!Dependencies.md
+docs/
+
+# Log files and output
+*.log
+*.txt
+!CMakeLists.txt
+**/tracking_times.txt
+**/localMapping_times.txt
+test.txt
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Dataset directories (these should be mounted)
+dataset*/
+slam_dataset/
+**/dataset*/
+
+# Generated vocabulary files (will be extracted during build)
+Vocabulary/ORBvoc.txt
+
+# Object files and libraries
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# Executables (will be built in container)
+Examples/*/mono_*
+Examples/*/stereo_*
+Examples/*/rgbd_*
+lib/
+
+# Evaluation and script outputs
+evaluation/
+*.sh.log

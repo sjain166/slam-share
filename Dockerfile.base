@@ -1,0 +1,58 @@
+# SLAM-Share Base Docker Image
+# Ubuntu 18.04 LTS with essential build tools
+# Step 1: Base system setup
+
+FROM ubuntu:18.04
+
+# Avoid prompts from apt
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Set timezone to avoid tzdata prompts
+ENV TZ=UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Update package list and install essential build tools
+RUN apt-get update && apt-get install -y \
+    # Essential build tools
+    build-essential \
+    cmake \
+    make \
+    gcc \
+    g++ \
+    # Version control
+    git \
+    # Archive tools for vocabulary extraction
+    tar \
+    gzip \
+    # Networking tools (for boost asio)
+    wget \
+    curl \
+    # Python for trajectory alignment (as specified by owner)
+    python \
+    python-numpy \
+    # Clean up apt cache to reduce image size
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify C++11 support (required by owner specification)
+RUN g++ --version && \
+    echo 'int main(){return 0;}' > /tmp/test.cpp && \
+    g++ -std=c++11 /tmp/test.cpp -o /tmp/test && \
+    /tmp/test && \
+    rm /tmp/test.cpp /tmp/test
+
+# Create working directory structure
+WORKDIR /slam-share
+
+# Display versions for validation
+RUN echo "=== Build Environment Info ===" && \
+    cat /etc/os-release && \
+    echo "CMAKE: $(cmake --version | head -1)" && \
+    echo "GCC: $(gcc --version | head -1)" && \
+    echo "G++: $(g++ --version | head -1)" && \
+    echo "MAKE: $(make --version | head -1)" && \
+    echo "PYTHON: $(python --version 2>&1)" && \
+    echo "================================"
+
+# Default command
+CMD ["/bin/bash"]
