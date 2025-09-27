@@ -1,27 +1,33 @@
-# SLAM-Share Base Image Build Script - PowerShell
-# Step 1: Ubuntu 18.04 + Essential Build Tools
-# For Windows Lambda Machine
+# SLAM-Share Incremental Build Script - PowerShell
+# Incremental Dependencies: Step 1 (Base) + Step 2 (OpenCV) + Step 3 (Eigen3) + ...
+# For Windows Lambda Machine with NVIDIA GPU
 
 # Enable strict error handling
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$IMAGE_NAME = "slam-share-base"
-$IMAGE_TAG = "step1-ubuntu18.04"
+$IMAGE_NAME = "slam-share"
+$IMAGE_TAG = "latest"
 $DOCKERFILE = "Dockerfile.base"
 
+# Current step info
+$CURRENT_STEP = "Step 1 (Base) + Step 2 (OpenCV)"
+$CURRENT_DEPENDENCIES = "Ubuntu 18.04, Build Tools, OpenCV 4.x"
+
 Write-Host "=================================================" -ForegroundColor Cyan
-Write-Host "SLAM-Share Docker Build - Step 1" -ForegroundColor Cyan
-Write-Host "Building base image with Ubuntu 18.04 + build tools" -ForegroundColor Cyan
+Write-Host "SLAM-Share Docker Incremental Build" -ForegroundColor Cyan
+Write-Host "Current: $CURRENT_STEP" -ForegroundColor Cyan
+Write-Host "Dependencies: $CURRENT_DEPENDENCIES" -ForegroundColor Cyan
 Write-Host "Windows Lambda Machine with NVIDIA GPU" -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
 
 try {
     # Check if Docker is running
     Write-Host "Checking Docker status..." -ForegroundColor Yellow
-    $dockerInfo = docker info 2>$null
+    $dockerInfo = & docker info 2>&1
     if ($LASTEXITCODE -ne 0) {
-        throw "Docker is not running. Please start Docker Desktop first."
+        Write-Host "Docker error output: $dockerInfo" -ForegroundColor Red
+        throw "Docker is not running or not accessible. Please start Docker Desktop first."
     }
     Write-Host "✅ Docker is running" -ForegroundColor Green
 
@@ -54,17 +60,17 @@ try {
 
     if ($LASTEXITCODE -eq 0) {
         Write-Host "`n=================================================" -ForegroundColor Green
-        Write-Host "✅ SUCCESS: Base image built successfully!" -ForegroundColor Green
+        Write-Host "✅ SUCCESS: Incremental build completed!" -ForegroundColor Green
         Write-Host "=================================================" -ForegroundColor Green
         Write-Host "Image: $IMAGE_NAME`:$IMAGE_TAG" -ForegroundColor White
+        Write-Host "Includes: $CURRENT_DEPENDENCIES" -ForegroundColor White
         Write-Host ""
-        Write-Host "To test the image, run:" -ForegroundColor Yellow
+        Write-Host "To test the image:" -ForegroundColor Yellow
+        Write-Host ".\docker\test.ps1" -ForegroundColor White
+        Write-Host ""
+        Write-Host "To run interactively:" -ForegroundColor Yellow
         Write-Host "docker run -it --rm $IMAGE_NAME`:$IMAGE_TAG" -ForegroundColor White
         Write-Host ""
-        Write-Host "To validate build environment:" -ForegroundColor Yellow
-        Write-Host "docker run --rm $IMAGE_NAME`:$IMAGE_TAG bash -c 'cmake --version && g++ --version'" -ForegroundColor White
-        Write-Host ""
-        Write-Host "Next Step: Ready for Step 2 (C++11 + OpenCV)" -ForegroundColor Cyan
     }
     else {
         throw "Docker build failed with exit code: $LASTEXITCODE"
