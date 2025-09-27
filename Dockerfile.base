@@ -242,6 +242,14 @@ RUN echo "=== Boost Verification ===" && \
 # STEP 6: Build SLAM-Share System (Following owner's build.sh)
 # ==========================================
 
+# Set up 2021-era build environment to match author's setup
+ENV CFLAGS="-O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized"
+ENV CXXFLAGS="-O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder"
+
+# Additional environment variables for 2021 compatibility
+ENV CMAKE_C_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized"
+ENV CMAKE_CXX_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder"
+
 # Copy source code into container
 COPY . /slam-share/
 
@@ -252,29 +260,35 @@ RUN echo "=== Extracting ORB Vocabulary ===" && \
     echo "Vocabulary extracted successfully" && \
     echo "=========================="
 
-# Build Thirdparty DBoW2 (as per owner's build.sh)
+# Build Thirdparty DBoW2 (as per owner's build.sh with 2021 environment)
 RUN echo "=== Building Thirdparty/DBoW2 ===" && \
     cd /slam-share/Thirdparty/DBoW2 && \
     mkdir -p build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
+             -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" && \
     make -j$(nproc) && \
     echo "DBoW2 built successfully" && \
     echo "=========================="
 
-# Build Thirdparty g2o (as per owner's build.sh)
+# Build Thirdparty g2o (as per owner's build.sh with 2021 environment)
 RUN echo "=== Building Thirdparty/g2o ===" && \
     cd /slam-share/Thirdparty/g2o && \
     mkdir -p build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
+             -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" && \
     make -j$(nproc) && \
     echo "g2o built successfully" && \
     echo "=========================="
 
-# Build main SLAM-Share library (as per owner's build.sh)
+# Build main SLAM-Share library (as per owner's build.sh with 2021 environment)
 RUN echo "=== Building SLAM-Share Main Library ===" && \
     cd /slam-share && \
     mkdir -p build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
+             -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" && \
     make -j$(nproc) && \
     echo "SLAM-Share library built successfully" && \
     echo "=========================="
