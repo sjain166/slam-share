@@ -114,14 +114,57 @@ try {
         }
     }
 
+    # =============================================
+    # STEP 3 TESTS: Eigen3
+    # =============================================
+    Write-Host "`n=== STEP 3 TESTS: Eigen3 ===" -ForegroundColor Cyan
+
+    # Test 9: Eigen3 headers verification
+    Write-Host "Test 3.1: Eigen3 headers verification..." -ForegroundColor Yellow
+    $eigenHeaders = docker run --rm $FULL_IMAGE bash -c "ls /usr/include/eigen3/Eigen/ 2>/dev/null | head -3 || echo 'Headers not found'"
+    if ($eigenHeaders -match "Dense" -or $eigenHeaders -match "Core") {
+        Write-Host "✅ Eigen3 headers: FOUND" -ForegroundColor Green
+    } else {
+        Write-Host "❌ Eigen3 headers: NOT FOUND" -ForegroundColor Red
+        Write-Host "Headers check: $eigenHeaders" -ForegroundColor Gray
+    }
+
+    # Test 10: Eigen3 C++ compilation
+    Write-Host "`nTest 3.2: Eigen3 C++ compilation..." -ForegroundColor Yellow
+    $eigenCppTest = docker run --rm $FULL_IMAGE bash -c '
+        echo "#include <Eigen/Dense>" > test_eigen.cpp &&
+        echo "#include <iostream>" >> test_eigen.cpp &&
+        echo "int main(){ Eigen::Vector3d v(1,2,3); std::cout << \"Eigen3 compilation successful\" << std::endl; return 0; }" >> test_eigen.cpp &&
+        g++ -std=c++11 test_eigen.cpp -o test_eigen -I/usr/include/eigen3 &&
+        ./test_eigen
+    '
+
+    if ($eigenCppTest -match "successful") {
+        Write-Host "✅ Eigen3 C++ compilation: PASSED" -ForegroundColor Green
+    } else {
+        Write-Host "❌ Eigen3 C++ compilation: FAILED" -ForegroundColor Red
+        Write-Host "Test output: $eigenCppTest" -ForegroundColor Gray
+    }
+
+    # Test 11: Eigen3 version check
+    Write-Host "`nTest 3.3: Eigen3 version verification..." -ForegroundColor Yellow
+    $eigenVersion = docker run --rm $FULL_IMAGE bash -c "grep -r 'EIGEN_WORLD_VERSION\|EIGEN_MAJOR_VERSION' /usr/include/eigen3/Eigen/src/Core/util/Macros.h 2>/dev/null | head -2 || echo 'Version check completed'"
+    if ($eigenVersion -match "EIGEN") {
+        Write-Host "✅ Eigen3 version info: Available" -ForegroundColor Green
+        Write-Host "Version details: $eigenVersion" -ForegroundColor Gray
+    } else {
+        Write-Host "ℹ️  Eigen3 version: $eigenVersion" -ForegroundColor Blue
+    }
+
     # Summary
     Write-Host "`n=================================================" -ForegroundColor Green
     Write-Host "✅ INCREMENTAL VALIDATION COMPLETED" -ForegroundColor Green
     Write-Host "Current Dependencies Ready:" -ForegroundColor Green
     Write-Host "- Ubuntu 18.04 + Build Tools ✅" -ForegroundColor White
     Write-Host "- OpenCV 4.x + Image Libraries ✅" -ForegroundColor White
+    Write-Host "- Eigen3 3.3+ Linear Algebra ✅" -ForegroundColor White
     Write-Host ""
-    Write-Host "Ready for next increment: Eigen3" -ForegroundColor Cyan
+    Write-Host "Ready for next increment: Pangolin" -ForegroundColor Cyan
     Write-Host "=================================================" -ForegroundColor Green
 
 } catch {

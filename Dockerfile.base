@@ -92,6 +92,32 @@ RUN echo "=== OpenCV Verification ===" && \
     rm -f /tmp/opencv_test.cpp /tmp/opencv_test && \
     echo "=========================="
 
+# ==========================================
+# STEP 3: Eigen3 Dependencies (>= 3.1.0 as per owner spec)
+# ==========================================
+
+# Install Eigen3 - Ubuntu 18.04 includes Eigen 3.3.4 (released 2017, stable by 2021)
+RUN apt-get update && apt-get install -y \
+    # Eigen3 linear algebra library
+    libeigen3-dev \
+    # Clean up apt cache
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify Eigen3 installation
+RUN echo "=== Eigen3 Verification ===" && \
+    # Check if Eigen3 headers are available
+    echo '#include <Eigen/Dense>' > /tmp/eigen_test.cpp && \
+    echo '#include <iostream>' >> /tmp/eigen_test.cpp && \
+    echo 'int main(){ Eigen::Vector3d v(1,2,3); std::cout << "Eigen3 ready - Vector: " << v.transpose() << std::endl; return 0; }' >> /tmp/eigen_test.cpp && \
+    g++ -std=c++11 /tmp/eigen_test.cpp -o /tmp/eigen_test -I/usr/include/eigen3 && \
+    /tmp/eigen_test && \
+    rm -f /tmp/eigen_test.cpp /tmp/eigen_test && \
+    # Check Eigen3 version in headers
+    echo "Eigen3 version from headers:" && \
+    grep -r "EIGEN_.*_VERSION" /usr/include/eigen3/Eigen/src/Core/util/Macros.h | head -3 || echo "Version check completed" && \
+    echo "=========================="
+
 # Display versions for validation
 RUN echo "=== Current Build Environment Info ===" && \
     cat /etc/os-release | grep VERSION && \
@@ -101,6 +127,7 @@ RUN echo "=== Current Build Environment Info ===" && \
     echo "MAKE: $(make --version | head -1)" && \
     echo "PYTHON: $(python --version 2>&1)" && \
     echo "OpenCV: $(pkg-config --modversion opencv4 2>/dev/null || pkg-config --modversion opencv 2>/dev/null || echo 'Version check via headers')" && \
+    echo "Eigen3: Installed (headers at /usr/include/eigen3)" && \
     echo "======================================="
 
 # Default command
