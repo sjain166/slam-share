@@ -2,6 +2,14 @@
 # Phase 3: Server image for distributed SLAM
 FROM slam-share-noetic:latest
 
+# Install X11 and GUI dependencies for Pangolin visualization
+RUN apt-get update && apt-get install -y \
+    xvfb \
+    x11-apps \
+    x11-utils \
+    x11vnc \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create server workspace
 WORKDIR /slam-share-ros-server
 RUN mkdir -p config data logs scripts
@@ -18,16 +26,20 @@ RUN echo '#!/bin/bash' > /slam-share-ros-server/start-ros-master.sh && \
     echo 'roscore' >> /slam-share-ros-server/start-ros-master.sh && \
     chmod +x /slam-share-ros-server/start-ros-master.sh
 
-# Create SLAM server startup script
+# Create SLAM server startup script with X11 virtual display
 RUN echo '#!/bin/bash' > /slam-share-ros-server/start-slam-server.sh && \
     echo 'source /opt/ros/noetic/setup.bash' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'export ROS_MASTER_URI=http://localhost:11311' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'export ROS_HOSTNAME=slam-server' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'echo "Starting virtual X11 display..."' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'Xvfb :1 -screen 0 1024x768x16 &' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'export DISPLAY=:1' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'sleep 3' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'echo "Starting ROS Master..."' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'roscore &' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'sleep 10' >> /slam-share-ros-server/start-slam-server.sh && \
-    echo 'echo "Starting SLAM Server..."' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'echo "Starting SLAM Server with GUI..."' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'cd /slam-share/Examples/ROS/ORB_SLAM3' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-server/config/Asus.yaml' >> /slam-share-ros-server/start-slam-server.sh && \
     chmod +x /slam-share-ros-server/start-slam-server.sh
