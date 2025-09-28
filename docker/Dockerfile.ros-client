@@ -27,11 +27,10 @@ ENV ROS_HOSTNAME=localhost
 # Create ROS workspace for SLAM-Share
 WORKDIR /slam-share/Examples/ROS/ORB_SLAM3
 
-# Build ROS examples using the existing CMakeLists.txt
+# Build ROS examples using rosmake (ROS build system)
 RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && \
     export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH && \
-    make clean && \
-    make -j$(nproc)"
+    rosmake --pre-clean ORB_SLAM3"
 
 # Create client working directory
 WORKDIR /slam-share-ros-client
