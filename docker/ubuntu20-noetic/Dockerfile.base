@@ -94,6 +94,10 @@ RUN git clone --recursive https://github.com/stevenlovegrove/Pangolin.git && \
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
 
+# Set compilation flags (same as successful original build)
+ENV CMAKE_C_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized"
+ENV CMAKE_CXX_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder"
+
 # Clean up
 WORKDIR /
 RUN rm -rf /opt/opencv.zip /opt/opencv_contrib.zip /opt/opencv-4.10.0 /opt/opencv_contrib-4.10.0

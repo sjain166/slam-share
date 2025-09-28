@@ -8,7 +8,9 @@ COPY . /slam-share/
 # Build SLAM-Share core system
 WORKDIR /slam-share
 RUN mkdir build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-Wno-error" && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
+             -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" && \
     make -j$(nproc)
 
 # Build ROS nodes with Noetic (including MonoAR - should work with OpenCV 4.x)
@@ -16,7 +18,9 @@ RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
     export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:\$ROS_PACKAGE_PATH && \
     cd Examples/ROS/ORB_SLAM3 && \
     mkdir -p build && cd build && \
-    cmake .. -DROS_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=\"-Wno-error\" && \
+    cmake .. -DROS_BUILD_TYPE=Release \
+             -DCMAKE_C_FLAGS=\"\$CMAKE_C_FLAGS\" \
+             -DCMAKE_CXX_FLAGS=\"\$CMAKE_CXX_FLAGS\" && \
     make -j\$(nproc)"
 
 # Create test workspace
