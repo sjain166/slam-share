@@ -1,0 +1,61 @@
+# SLAM-Share with ROS Support - Basic Single Container
+# Build incrementally following authors' design
+FROM slam-share:latest
+
+# Install ROS Melodic
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu bionic main" > /etc/apt/sources.list.d/ros-latest.list' && \
+    apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 && \
+    apt-get update && \
+    apt-get install -y ros-melodic-desktop-full \
+                       ros-melodic-cv-bridge \
+                       ros-melodic-image-transport \
+                       ros-melodic-sensor-msgs \
+                       python-rosdep \
+                       python-rosinstall \
+                       python-rosinstall-generator \
+                       python-wstool && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Initialize rosdep
+RUN rosdep init && rosdep update
+
+# Setup ROS environment
+RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc
+ENV ROS_MASTER_URI=http://localhost:11311
+ENV ROS_HOSTNAME=localhost
+
+# Build ROS nodes following authors' script
+WORKDIR /slam-share
+RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && \
+    export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:\$ROS_PACKAGE_PATH && \
+    cd Examples/ROS/ORB_SLAM3 && \
+    mkdir -p build && cd build && \
+    cmake .. -DROS_BUILD_TYPE=Release && \
+    make -j\$(nproc)"
+
+# Create test workspace
+WORKDIR /slam-share-ros-test
+RUN mkdir -p config data logs
+
+# Copy configuration files for testing
+RUN cp /slam-share/Examples/ROS/ORB_SLAM3/Asus.yaml /slam-share-ros-test/config/
+
+# Create basic test script
+RUN echo '#!/bin/bash' > /slam-share-ros-test/test-mono-node.sh && \
+    echo 'echo "=== Testing Mono ROS Node ==="' >> /slam-share-ros-test/test-mono-node.sh && \
+    echo 'source /opt/ros/melodic/setup.bash' >> /slam-share-ros-test/test-mono-node.sh && \
+    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /slam-share-ros-test/test-mono-node.sh && \
+    echo 'echo "Starting roscore..."' >> /slam-share-ros-test/test-mono-node.sh && \
+    echo 'roscore &' >> /slam-share-ros-test/test-mono-node.sh && \
+    echo 'sleep 5' >> /slam-share-ros-test/test-mono-node.sh && \
+    echo 'echo "Testing rostopic list..."' >> /slam-share-ros-test/test-mono-node.sh && \
+    echo 'rostopic list' >> /slam-share-ros-test/test-mono-node.sh && \
+    echo 'echo "ROS environment ready!"' >> /slam-share-ros-test/test-mono-node.sh && \
+    echo 'echo "To run SLAM: rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-test/config/Asus.yaml"' >> /slam-share-ros-test/test-mono-node.sh && \
+    chmod +x /slam-share-ros-test/test-mono-node.sh
+
+# Set environment
+ENV ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH
+
+# Default command - keep container alive for testing
+CMD ["/bin/bash"]

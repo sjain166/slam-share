@@ -28,8 +28,6 @@
 #include<opencv2/core/core.hpp>
 #include<opencv2/imgproc/imgproc.hpp>
 
-#include<boost/interprocess/offset_ptr.hpp>
-
 #include"../../../include/System.h"
 
 #include"ViewerAR.h"
@@ -152,12 +150,7 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg)
     cv::Mat imu;
     cv::Mat Tcw = mpSLAM->TrackMonocular(cv_ptr->image,cv_ptr->header.stamp.toSec());
     int state = mpSLAM->GetTrackingState();
-    std::vector<boost::interprocess::offset_ptr<ORB_SLAM3::MapPoint> > vMPsOffset = mpSLAM->GetTrackedMapPoints();
-    vector<ORB_SLAM3::MapPoint*> vMPs;
-    vMPs.reserve(vMPsOffset.size());
-    for(const auto& mp : vMPsOffset) {
-        vMPs.push_back(mp.get());
-    }
+    vector<ORB_SLAM3::MapPoint*> vMPs = mpSLAM->GetTrackedMapPoints();
     vector<cv::KeyPoint> vKeys = mpSLAM->GetTrackedKeyPointsUn();
 
     cv::undistort(im,imu,K,DistCoef);
