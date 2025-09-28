@@ -39,6 +39,10 @@ ENV ROS_HOSTNAME=slam-server
 # Create ROS workspace and build with AR support
 WORKDIR /slam-share/Examples/ROS/ORB_SLAM3
 
+# Apply fix for MonoAR shared memory pointer issues
+COPY docker/fix-ros-ar.sh /tmp/fix-ros-ar.sh
+RUN chmod +x /tmp/fix-ros-ar.sh && /tmp/fix-ros-ar.sh
+
 # Build ROS examples with AR support
 RUN cd /slam-share/Examples/ROS/ORB_SLAM3 && \
     /bin/bash -c "source /opt/ros/melodic/setup.bash && \
