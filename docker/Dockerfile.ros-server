@@ -39,13 +39,13 @@ ENV ROS_HOSTNAME=slam-server
 # Create ROS workspace and build with AR support
 WORKDIR /slam-share/Examples/ROS/ORB_SLAM3
 
-# Build ROS examples using manual CMake (rosmake doesn't work properly)
-RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && \
-    export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH && \
+# Build ROS examples the same way that worked in debug container
+RUN cd /slam-share/Examples/ROS/ORB_SLAM3 && \
+    /bin/bash -c "source /opt/ros/melodic/setup.bash && \
+    export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:\$ROS_PACKAGE_PATH && \
     mkdir -p build && cd build && \
     cmake .. && \
-    make -j$(nproc) Mono Stereo RGBD Mono_Inertial Stereo_Inertial && \
-    echo 'Built ROS executables successfully'"
+    make -j\$(nproc) Mono Stereo RGBD Mono_Inertial Stereo_Inertial"
 
 # Create server working directory
 WORKDIR /slam-share-ros-server
