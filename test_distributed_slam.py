@@ -88,7 +88,10 @@ class DistributedSLAMTester:
         print("PHASE 3: STARTING SLAM SERVER")
         print("="*60)
 
-        server_command = f'''docker run -d --name {self.server_name} --network {self.network_name} -p 11311:11311 slam-share-ros-server:latest bash -c "
+        print("🚀 Starting server with manual command for reliability...")
+        print("\nPlease run this command in your terminal:")
+        print("="*80)
+        server_manual_command = f'''docker run -d --name {self.server_name} --network {self.network_name} -p 11311:11311 slam-share-ros-server:latest bash -c "
 source /opt/ros/noetic/setup.bash
 export ROS_MASTER_URI=http://localhost:11311
 export ROS_HOSTNAME={self.server_name}
@@ -100,12 +103,24 @@ echo 'Starting SLAM node (headless)...'
 rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-server/config/Asus.yaml &
 tail -f /dev/null
 "'''
+        print(server_manual_command)
+        print("="*80)
 
-        success = self.run_command(server_command, "Starting SLAM server container")
-        if success:
+        input("\nPress Enter after you've run the server command and it's running...")
+
+        # Verify the server is running
+        time.sleep(5)
+        output = self.run_command(f"docker ps --filter name={self.server_name}",
+                                 "Checking if server container is running", check_output=True)
+
+        if output and self.server_name in output:
+            print("✅ Server container is running!")
             print("⏳ Waiting for server initialization (60 seconds)...")
             time.sleep(60)
-        return success
+            return True
+        else:
+            print("❌ Server container not found. Please check the command above.")
+            return False
 
     def phase4_verify_server(self):
         """Phase 4: Verify server readiness"""
