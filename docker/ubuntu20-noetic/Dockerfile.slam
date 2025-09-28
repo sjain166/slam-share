@@ -5,13 +5,38 @@ FROM slam-share-noetic-base:latest
 # Copy SLAM-Share source code
 COPY . /slam-share/
 
-# Build SLAM-Share core system
+# Build dependencies first (same as successful original build)
 WORKDIR /slam-share
-RUN mkdir build && cd build && \
+
+# Build DBoW2
+RUN echo "=== Building DBoW2 ===" && \
+    cd Thirdparty/DBoW2 && \
+    mkdir -p build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release \
              -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
              -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" && \
-    make -j$(nproc)
+    make -j$(nproc) && \
+    echo "DBoW2 built successfully"
+
+# Build g2o
+RUN echo "=== Building g2o ===" && \
+    cd Thirdparty/g2o && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
+             -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" && \
+    make -j$(nproc) && \
+    echo "g2o built successfully"
+
+# Build main SLAM-Share library
+RUN echo "=== Building SLAM-Share Main Library ===" && \
+    cd /slam-share && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
+             -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" && \
+    make -j$(nproc) && \
+    echo "SLAM-Share library built successfully"
 
 # Build ROS nodes with Noetic (including MonoAR - should work with OpenCV 4.x)
 RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
