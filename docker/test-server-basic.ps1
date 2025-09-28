@@ -60,39 +60,77 @@ try {
     $serverStart = docker run -d -p ${SERVER_PORT}:6767 --name $SERVER_NAME $SERVER_IMAGE
 
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ Server started: $serverStart" -ForegroundColor Green
+        Write-Host "✅ Server container started: $($serverStart.Substring(0,12))..." -ForegroundColor Green
 
-        # Wait and check status
-        Start-Sleep -Seconds 2
+        # Wait for server to initialize (longer wait)
+        Write-Host "Waiting for server initialization..." -ForegroundColor Gray
+        Start-Sleep -Seconds 5
+
+        # Check if container is still running (not crashed)
         $containerStatus = docker ps --filter "name=$SERVER_NAME" --format "{{.Status}}"
 
         if ($containerStatus) {
-            Write-Host "✅ Server running: $containerStatus" -ForegroundColor Green
+            Write-Host "✅ Server container running: $containerStatus" -ForegroundColor Green
 
-            # Show logs
-            Write-Host "`nServer logs:" -ForegroundColor Blue
+            # Check logs to see if server started properly (with timeout)
+            Write-Host "Checking server startup logs..." -ForegroundColor Gray
+            Start-Sleep -Seconds 2  # Additional time for logs
             $logs = docker logs $SERVER_NAME
-            Write-Host $logs -ForegroundColor Gray
+
+            Write-Host "📋 Server logs:" -ForegroundColor Blue
+            Write-Host "$logs" -ForegroundColor Gray
+
+            # Test if server process is running inside container
+            Write-Host "`nTesting server process..." -ForegroundColor Gray
+            try {
+                $serverCheck = docker exec $SERVER_NAME ps aux 2>$null
+                if ($serverCheck -match "simple-server") {
+                    Write-Host "✅ Server process is running inside container" -ForegroundColor Green
+                } else {
+                    Write-Host "⚠️  Server process check inconclusive" -ForegroundColor Yellow
+                }
+            } catch {
+                Write-Host "⚠️  Could not check server process status" -ForegroundColor Yellow
+            }
 
         } else {
-            Write-Host "❌ Server not running" -ForegroundColor Red
+            Write-Host "❌ Server container stopped unexpectedly" -ForegroundColor Red
+            $failLogs = docker logs $SERVER_NAME 2>$null
+            if ($failLogs) {
+                Write-Host "Container failure logs:" -ForegroundColor Red
+                Write-Host "$failLogs" -ForegroundColor Gray
+            }
         }
 
     } else {
-        Write-Host "❌ Failed to start server" -ForegroundColor Red
+        Write-Host "❌ Failed to start server container" -ForegroundColor Red
     }
 
-    # Test 6: Port check
+    # Test 6: Port accessibility check
     Write-Host "`nTest 6: Port accessibility..." -ForegroundColor Yellow
     try {
-        $portTest = Test-NetConnection -ComputerName localhost -Port $SERVER_PORT -InformationLevel Quiet -WarningAction SilentlyContinue
+        # Use timeout for port test to avoid hanging
+        $portTest = Test-NetConnection -ComputerName localhost -Port $SERVER_PORT -InformationLevel Quiet -WarningAction SilentlyContinue -TimeoutInSeconds 5
         if ($portTest) {
-            Write-Host "✅ Port ${SERVER_PORT} ACCESSIBLE" -ForegroundColor Green
+            Write-Host "✅ Port ${SERVER_PORT} is accessible" -ForegroundColor Green
         } else {
-            Write-Host "⚠️  Port ${SERVER_PORT} May need client connection" -ForegroundColor Yellow
+            Write-Host "⚠️  Port ${SERVER_PORT} - Server may be starting or need client connection" -ForegroundColor Yellow
         }
     } catch {
-        Write-Host "⚠️  Port test completed" -ForegroundColor Yellow
+        Write-Host "⚠️  Port test completed (timeout or connection issue)" -ForegroundColor Yellow
+    }
+
+    # Additional check: Verify port is bound inside container
+    Write-Host "Checking port binding inside container..." -ForegroundColor Gray
+    try {
+        $portBinding = docker exec $SERVER_NAME netstat -tlnp 2>$null | grep ":6767"
+        if ($portBinding) {
+            Write-Host "✅ Server is listening on port 6767 inside container" -ForegroundColor Green
+        } else {
+            Write-Host "⚠️  Port binding check inconclusive" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "⚠️  Could not check port binding" -ForegroundColor Yellow
     }
 
     # Summary
