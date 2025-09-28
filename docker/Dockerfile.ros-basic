@@ -24,14 +24,14 @@ RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc
 ENV ROS_MASTER_URI=http://localhost:11311
 ENV ROS_HOSTNAME=localhost
 
-# Build ROS nodes following authors' script
+# Build ROS nodes following authors' script (excluding MonoAR due to shared memory compatibility)
 WORKDIR /slam-share
 RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && \
     export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:\$ROS_PACKAGE_PATH && \
     cd Examples/ROS/ORB_SLAM3 && \
     mkdir -p build && cd build && \
     cmake .. -DROS_BUILD_TYPE=Release && \
-    make -j\$(nproc)"
+    make -j\$(nproc) Mono Stereo RGBD Mono_Inertial Stereo_Inertial"
 
 # Create test workspace
 WORKDIR /slam-share-ros-test
@@ -40,19 +40,24 @@ RUN mkdir -p config data logs
 # Copy configuration files for testing
 RUN cp /slam-share/Examples/ROS/ORB_SLAM3/Asus.yaml /slam-share-ros-test/config/
 
-# Create basic test script
-RUN echo '#!/bin/bash' > /slam-share-ros-test/test-mono-node.sh && \
-    echo 'echo "=== Testing Mono ROS Node ==="' >> /slam-share-ros-test/test-mono-node.sh && \
-    echo 'source /opt/ros/melodic/setup.bash' >> /slam-share-ros-test/test-mono-node.sh && \
-    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /slam-share-ros-test/test-mono-node.sh && \
-    echo 'echo "Starting roscore..."' >> /slam-share-ros-test/test-mono-node.sh && \
-    echo 'roscore &' >> /slam-share-ros-test/test-mono-node.sh && \
-    echo 'sleep 5' >> /slam-share-ros-test/test-mono-node.sh && \
-    echo 'echo "Testing rostopic list..."' >> /slam-share-ros-test/test-mono-node.sh && \
-    echo 'rostopic list' >> /slam-share-ros-test/test-mono-node.sh && \
-    echo 'echo "ROS environment ready!"' >> /slam-share-ros-test/test-mono-node.sh && \
-    echo 'echo "To run SLAM: rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-test/config/Asus.yaml"' >> /slam-share-ros-test/test-mono-node.sh && \
-    chmod +x /slam-share-ros-test/test-mono-node.sh
+# Create comprehensive test scripts
+RUN echo '#!/bin/bash' > /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'echo "=== Testing ROS Environment ==="' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'source /opt/ros/melodic/setup.bash' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'echo "Starting roscore..."' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'roscore &' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'sleep 5' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'echo "✅ Testing rostopic list..."' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'rostopic list' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'echo "✅ Testing rosnode list..."' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'rosnode list' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'echo "✅ Checking available ORB_SLAM3 nodes..."' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'ls -la /slam-share/Examples/ROS/ORB_SLAM3/build/' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'echo "✅ ROS environment ready!"' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'echo "Available nodes: Mono, Stereo, RGBD, Mono_Inertial, Stereo_Inertial"' >> /slam-share-ros-test/test-ros-environment.sh && \
+    echo 'echo "To run SLAM: rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-test/config/Asus.yaml"' >> /slam-share-ros-test/test-ros-environment.sh && \
+    chmod +x /slam-share-ros-test/test-ros-environment.sh
 
 # Set environment
 ENV ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH
