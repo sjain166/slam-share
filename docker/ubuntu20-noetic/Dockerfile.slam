@@ -1,0 +1,49 @@
+# SLAM-Share Core System with ROS Noetic
+# Phase 2: Build SLAM-Share with ROS Noetic support
+FROM slam-share-noetic-base:latest
+
+# Copy SLAM-Share source code
+COPY . /slam-share/
+
+# Build SLAM-Share core system
+WORKDIR /slam-share
+RUN mkdir build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc)
+
+# Build ROS nodes with Noetic (including MonoAR - should work with OpenCV 4.x)
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
+    export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:\$ROS_PACKAGE_PATH && \
+    cd Examples/ROS/ORB_SLAM3 && \
+    mkdir -p build && cd build && \
+    cmake .. -DROS_BUILD_TYPE=Release && \
+    make -j\$(nproc)"
+
+# Create test workspace
+WORKDIR /slam-share-test
+RUN mkdir -p config data logs
+
+# Copy configuration files
+RUN cp /slam-share/Examples/ROS/ORB_SLAM3/Asus.yaml /slam-share-test/config/
+
+# Test scripts for core SLAM functionality
+RUN echo '#!/bin/bash' > /slam-share-test/test-core-slam.sh && \
+    echo 'echo "=== Testing Core SLAM System ==="' >> /slam-share-test/test-core-slam.sh && \
+    echo 'cd /slam-share' >> /slam-share-test/test-core-slam.sh && \
+    echo 'echo "✅ Testing non-ROS executables..."' >> /slam-share-test/test-core-slam.sh && \
+    echo 'ls -la Examples/' >> /slam-share-test/test-core-slam.sh && \
+    echo 'echo "✅ Testing ROS Noetic environment..."' >> /slam-share-test/test-core-slam.sh && \
+    echo 'source /opt/ros/noetic/setup.bash' >> /slam-share-test/test-core-slam.sh && \
+    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /slam-share-test/test-core-slam.sh && \
+    echo 'roscore &' >> /slam-share-test/test-core-slam.sh && \
+    echo 'sleep 5' >> /slam-share-test/test-core-slam.sh && \
+    echo 'rostopic list' >> /slam-share-test/test-core-slam.sh && \
+    echo 'echo "✅ Checking ROS nodes build..."' >> /slam-share-test/test-core-slam.sh && \
+    echo 'ls -la /slam-share/Examples/ROS/ORB_SLAM3/build/' >> /slam-share-test/test-core-slam.sh && \
+    echo 'echo "✅ Core SLAM system ready!"' >> /slam-share-test/test-core-slam.sh && \
+    chmod +x /slam-share-test/test-core-slam.sh
+
+# Set environment
+ENV ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH
+
+CMD ["/bin/bash"]

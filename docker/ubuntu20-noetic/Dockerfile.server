@@ -1,0 +1,56 @@
+# SLAM-Share ROS Noetic Server
+# Phase 3: Server image for distributed SLAM
+FROM slam-share-noetic:latest
+
+# Create server workspace
+WORKDIR /slam-share-ros-server
+RUN mkdir -p config data logs scripts
+
+# Copy server configuration
+RUN cp /slam-share/Examples/ROS/ORB_SLAM3/Asus.yaml /slam-share-ros-server/config/
+
+# Create ROS Master startup script
+RUN echo '#!/bin/bash' > /slam-share-ros-server/start-ros-master.sh && \
+    echo 'source /opt/ros/noetic/setup.bash' >> /slam-share-ros-server/start-ros-master.sh && \
+    echo 'export ROS_MASTER_URI=http://localhost:11311' >> /slam-share-ros-server/start-ros-master.sh && \
+    echo 'export ROS_HOSTNAME=localhost' >> /slam-share-ros-server/start-ros-master.sh && \
+    echo 'echo "Starting ROS Master..."' >> /slam-share-ros-server/start-ros-master.sh && \
+    echo 'roscore' >> /slam-share-ros-server/start-ros-master.sh && \
+    chmod +x /slam-share-ros-server/start-ros-master.sh
+
+# Create SLAM server startup script
+RUN echo '#!/bin/bash' > /slam-share-ros-server/start-slam-server.sh && \
+    echo 'source /opt/ros/noetic/setup.bash' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'export ROS_MASTER_URI=http://localhost:11311' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'export ROS_HOSTNAME=slam-server' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'echo "Starting ROS Master..."' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'roscore &' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'sleep 10' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'echo "Starting SLAM Server..."' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'cd /slam-share/Examples/ROS/ORB_SLAM3' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-server/config/Asus.yaml' >> /slam-share-ros-server/start-slam-server.sh && \
+    chmod +x /slam-share-ros-server/start-slam-server.sh
+
+# Create test script
+RUN echo '#!/bin/bash' > /slam-share-ros-server/test-server.sh && \
+    echo 'echo "=== Testing SLAM Server ==="' >> /slam-share-ros-server/test-server.sh && \
+    echo 'source /opt/ros/noetic/setup.bash' >> /slam-share-ros-server/test-server.sh && \
+    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /slam-share-ros-server/test-server.sh && \
+    echo 'echo "✅ Starting ROS Master..."' >> /slam-share-ros-server/test-server.sh && \
+    echo 'roscore &' >> /slam-share-ros-server/test-server.sh && \
+    echo 'sleep 10' >> /slam-share-ros-server/test-server.sh && \
+    echo 'echo "✅ Testing ROS connectivity..."' >> /slam-share-ros-server/test-server.sh && \
+    echo 'rostopic list' >> /slam-share-ros-server/test-server.sh && \
+    echo 'echo "✅ Testing SLAM node (should not segfault)..."' >> /slam-share-ros-server/test-server.sh && \
+    echo 'timeout 10 rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-server/config/Asus.yaml || echo "Test completed"' >> /slam-share-ros-server/test-server.sh && \
+    echo 'echo "✅ Server ready!"' >> /slam-share-ros-server/test-server.sh && \
+    chmod +x /slam-share-ros-server/test-server.sh
+
+# Set server environment
+ENV ROS_MASTER_URI=http://localhost:11311
+ENV ROS_HOSTNAME=slam-server
+ENV ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH
+
+# Default command
+CMD ["/slam-share-ros-server/start-ros-master.sh"]

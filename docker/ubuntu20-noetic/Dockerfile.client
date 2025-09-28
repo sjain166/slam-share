@@ -1,0 +1,56 @@
+# SLAM-Share ROS Noetic Client
+# Phase 4: Client image for distributed SLAM
+FROM slam-share-noetic:latest
+
+# Create client workspace
+WORKDIR /slam-share-ros-client
+RUN mkdir -p config data logs scripts
+
+# Copy client configuration
+RUN cp /slam-share/Examples/ROS/ORB_SLAM3/Asus.yaml /slam-share-ros-client/config/
+
+# Create ROS client startup script
+RUN echo '#!/bin/bash' > /slam-share-ros-client/start-ros-client.sh && \
+    echo 'source /opt/ros/noetic/setup.bash' >> /slam-share-ros-client/start-ros-client.sh && \
+    echo 'export ROS_MASTER_URI=${ROS_MASTER_URI:-http://slam-server:11311}' >> /slam-share-ros-client/start-ros-client.sh && \
+    echo 'export ROS_HOSTNAME=${ROS_HOSTNAME:-slam-client}' >> /slam-share-ros-client/start-ros-client.sh && \
+    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /slam-share-ros-client/start-ros-client.sh && \
+    echo 'echo "Connecting to ROS Master at: $ROS_MASTER_URI"' >> /slam-share-ros-client/start-ros-client.sh && \
+    echo 'echo "Client hostname: $ROS_HOSTNAME"' >> /slam-share-ros-client/start-ros-client.sh && \
+    echo 'sleep 5' >> /slam-share-ros-client/start-ros-client.sh && \
+    echo 'echo "Testing ROS connectivity..."' >> /slam-share-ros-client/start-ros-client.sh && \
+    echo 'rostopic list' >> /slam-share-ros-client/start-ros-client.sh && \
+    echo 'echo "ROS Client ready for camera data publishing!"' >> /slam-share-ros-client/start-ros-client.sh && \
+    echo 'tail -f /dev/null' >> /slam-share-ros-client/start-ros-client.sh && \
+    chmod +x /slam-share-ros-client/start-ros-client.sh
+
+# Create camera publisher script
+RUN echo '#!/bin/bash' > /slam-share-ros-client/publish-camera.sh && \
+    echo 'source /opt/ros/noetic/setup.bash' >> /slam-share-ros-client/publish-camera.sh && \
+    echo 'export ROS_MASTER_URI=${ROS_MASTER_URI:-http://slam-server:11311}' >> /slam-share-ros-client/publish-camera.sh && \
+    echo 'export ROS_HOSTNAME=${ROS_HOSTNAME:-slam-client}' >> /slam-share-ros-client/publish-camera.sh && \
+    echo 'echo "Publishing test camera data to /camera/image_raw..."' >> /slam-share-ros-client/publish-camera.sh && \
+    echo 'rostopic pub /camera/image_raw sensor_msgs/Image '"'"'{header: {stamp: now, frame_id: camera}, height: 480, width: 640, encoding: mono8, step: 640, data: []}'"'"' -r 1' >> /slam-share-ros-client/publish-camera.sh && \
+    chmod +x /slam-share-ros-client/publish-camera.sh
+
+# Create test script
+RUN echo '#!/bin/bash' > /slam-share-ros-client/test-client.sh && \
+    echo 'echo "=== Testing SLAM Client ==="' >> /slam-share-ros-client/test-client.sh && \
+    echo 'source /opt/ros/noetic/setup.bash' >> /slam-share-ros-client/test-client.sh && \
+    echo 'export ROS_MASTER_URI=${ROS_MASTER_URI:-http://slam-server:11311}' >> /slam-share-ros-client/test-client.sh && \
+    echo 'export ROS_HOSTNAME=${ROS_HOSTNAME:-slam-client}' >> /slam-share-ros-client/test-client.sh && \
+    echo 'echo "✅ Testing ROS Master connectivity..."' >> /slam-share-ros-client/test-client.sh && \
+    echo 'rostopic list' >> /slam-share-ros-client/test-client.sh && \
+    echo 'echo "✅ Testing camera topic publishing..."' >> /slam-share-ros-client/test-client.sh && \
+    echo 'timeout 5 rostopic pub /camera/image_raw sensor_msgs/Image '"'"'{header: {stamp: now, frame_id: camera}, height: 480, width: 640, encoding: mono8, step: 640, data: []}'"'"' -r 1 &' >> /slam-share-ros-client/test-client.sh && \
+    echo 'sleep 8' >> /slam-share-ros-client/test-client.sh && \
+    echo 'echo "✅ Client ready!"' >> /slam-share-ros-client/test-client.sh && \
+    chmod +x /slam-share-ros-client/test-client.sh
+
+# Set client environment defaults
+ENV ROS_MASTER_URI=http://slam-server:11311
+ENV ROS_HOSTNAME=slam-client
+ENV ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH
+
+# Default command
+CMD ["/slam-share-ros-client/start-ros-client.sh"]

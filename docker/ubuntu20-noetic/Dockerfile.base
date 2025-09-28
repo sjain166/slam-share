@@ -1,0 +1,104 @@
+# SLAM-Share Base Image with Ubuntu 20.04 and ROS Noetic
+# Phase 1: Base image with ROS Noetic and OpenCV 4.x compatibility
+FROM ubuntu:20.04
+
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    wget \
+    curl \
+    pkg-config \
+    software-properties-common \
+    lsb-release \
+    gnupg2 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ROS Noetic
+RUN echo "deb http://packages.ros.org/ros/ubuntu focal main" > /etc/apt/sources.list.d/ros-latest.list && \
+    apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 && \
+    apt-get update && \
+    apt-get install -y \
+        ros-noetic-desktop-full \
+        ros-noetic-roscpp \
+        ros-noetic-tf \
+        ros-noetic-cv-bridge \
+        ros-noetic-image-transport \
+        ros-noetic-sensor-msgs \
+        python3-rosdep \
+        python3-rosinstall \
+        python3-rosinstall-generator \
+        python3-wstool \
+        python3-catkin-tools && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Initialize rosdep
+RUN rosdep init && rosdep update
+
+# Setup ROS environment
+RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+ENV ROS_MASTER_URI=http://localhost:11311
+ENV ROS_HOSTNAME=localhost
+ENV ROS_DISTRO=noetic
+
+# Install SLAM-Share dependencies (same versions as before, compatible with Ubuntu 20.04)
+RUN apt-get update && apt-get install -y \
+    libeigen3-dev \
+    libboost-all-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install OpenCV 4.10.0 (compatible with both SLAM-Share and ROS Noetic)
+WORKDIR /opt
+RUN wget -O opencv.zip https://github.com/opencv/opencv/archive/4.10.0.zip && \
+    wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.10.0.zip && \
+    unzip opencv.zip && unzip opencv_contrib.zip && \
+    mkdir -p opencv-4.10.0/build
+
+WORKDIR /opt/opencv-4.10.0/build
+RUN cmake -D CMAKE_BUILD_TYPE=RELEASE \
+    -D CMAKE_INSTALL_PREFIX=/usr/local \
+    -D OPENCV_EXTRA_MODULES_PATH=/opt/opencv_contrib-4.10.0/modules \
+    -D OPENCV_ENABLE_NONFREE=ON \
+    -D BUILD_EXAMPLES=OFF \
+    -D INSTALL_PYTHON_EXAMPLES=OFF \
+    -D INSTALL_C_EXAMPLES=OFF \
+    -D PYTHON_EXECUTABLE=$(which python3) \
+    -D BUILD_opencv_python2=OFF \
+    -D CMAKE_INSTALL_PREFIX=$(python3 -c "import sys; print(sys.prefix)") \
+    -D PYTHON3_EXECUTABLE=$(which python3) \
+    -D PYTHON3_INCLUDE_DIR=$(python3 -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())") \
+    -D PYTHON3_PACKAGES_PATH=$(python3 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())") \
+    .. && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
+
+# Install Pangolin
+WORKDIR /opt
+RUN git clone --recursive https://github.com/stevenlovegrove/Pangolin.git && \
+    cd Pangolin && \
+    git checkout v0.6 && \
+    mkdir build && cd build && \
+    cmake .. && \
+    make -j$(nproc) && \
+    make install
+
+# Set library paths
+ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+
+# Clean up
+WORKDIR /
+RUN rm -rf /opt/opencv.zip /opt/opencv_contrib.zip /opt/opencv-4.10.0 /opt/opencv_contrib-4.10.0
+
+# Create workspace
+WORKDIR /slam-share
+
+CMD ["/bin/bash"]
