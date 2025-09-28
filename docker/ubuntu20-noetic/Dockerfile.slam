@@ -5,6 +5,13 @@ FROM slam-share-noetic-base:latest
 # Copy SLAM-Share source code
 COPY . /slam-share/
 
+# Extract vocabulary (as per owner's build.sh)
+RUN echo "=== Extracting ORB Vocabulary ===" && \
+    cd Vocabulary && \
+    tar -xf ORBvoc.txt.tar.gz && \
+    echo "Vocabulary extracted successfully" && \
+    echo "=========================="
+
 # Build dependencies first (same as successful original build)
 WORKDIR /slam-share
 
