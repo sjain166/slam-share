@@ -95,6 +95,7 @@ RUN echo '#!/bin/bash' > /slam-share-ros-server/start-slam-server.sh && \
     echo 'export ROS_MASTER_URI=http://localhost:11311' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'export ROS_HOSTNAME=slam-server' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /slam-share-ros-server/start-slam-server.sh && \
+    echo 'export LD_LIBRARY_PATH=/opt/ros/melodic/lib:$LD_LIBRARY_PATH' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'echo "Starting ROS Master..."' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'roscore &' >> /slam-share-ros-server/start-slam-server.sh && \
     echo 'sleep 5' >> /slam-share-ros-server/start-slam-server.sh && \
