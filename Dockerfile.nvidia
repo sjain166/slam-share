@@ -90,7 +90,8 @@ COPY --from=slam-share-ros-server:latest /slam-share/Thirdparty /slam-share/Thir
 COPY --from=slam-share-ros-server:latest /slam-share/Examples /slam-share/Examples
 COPY --from=slam-share-ros-server:latest /slam-share/Vocabulary /slam-share/Vocabulary
 COPY --from=slam-share-ros-server:latest /slam-share/CMakeLists.txt /slam-share/
-COPY --from=slam-share-ros-server:latest /slam-share/build.sh /slam-share/
+# Copy build script from local context
+COPY build.sh /slam-share/
 
 # Use system OpenCV from ROS Noetic (compatible with NVIDIA)
 RUN echo "=== OpenCV Version Check ===" && \
