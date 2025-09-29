@@ -74,13 +74,12 @@ RUN echo "=== Building OpenCV (LMWafer Config) ===" && \
     ldconfig && \
     echo "OpenCV built successfully"
 
-# Build Pangolin (LMWafer's exact approach from Jan 2022)
-RUN echo "=== Building Pangolin (LMWafer Jan 2022 Config) ===" && \
-    git clone https://github.com/stevenlovegrove/Pangolin.git && \
+# Build Pangolin (use stable v0.5 that we know works)
+RUN echo "=== Building Pangolin (v0.5 stable) ===" && \
+    git clone --branch v0.5 --depth 1 https://github.com/stevenlovegrove/Pangolin.git && \
     cd Pangolin && \
-    git checkout $(git rev-list -n 1 --before="2022-01-05" master) && \
     mkdir build && cd build && \
-    cmake -D CMAKE_BUILD_TYPE=RELEASE -DCPP11_NO_BOOST=1 /dpds/Pangolin/ && \
+    cmake -D CMAKE_BUILD_TYPE=RELEASE /dpds/Pangolin/ && \
     make -j4 && \
     make install && \
     ldconfig && \
