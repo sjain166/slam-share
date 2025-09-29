@@ -83,81 +83,13 @@ RUN apt-get update && apt-get install -y \
     libswscale-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install OpenCV 4.10.0 with CUDA support
-WORKDIR /opt
-RUN wget -O opencv.zip https://github.com/opencv/opencv/archive/4.10.0.zip && \
-    wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.10.0.zip && \
-    unzip opencv.zip && unzip opencv_contrib.zip && \
-    mkdir -p opencv-4.10.0/build
+# Copy working SLAM-Share build from previous successful image
+COPY --from=slam-share-ros-server:latest /slam-share /slam-share
+COPY --from=slam-share-ros-server:latest /usr/local/lib /usr/local/lib
+COPY --from=slam-share-ros-server:latest /usr/local/include /usr/local/include
 
-WORKDIR /opt/opencv-4.10.0/build
-RUN cmake -D CMAKE_BUILD_TYPE=RELEASE \
-    -D CMAKE_INSTALL_PREFIX=/usr/local \
-    -D OPENCV_EXTRA_MODULES_PATH=/opt/opencv_contrib-4.10.0/modules \
-    -D OPENCV_ENABLE_NONFREE=ON \
-    -D WITH_CUDA=ON \
-    -D WITH_CUDNN=ON \
-    -D OPENCV_DNN_CUDA=ON \
-    -D ENABLE_FAST_MATH=1 \
-    -D CUDA_FAST_MATH=1 \
-    -D CUDA_ARCH_BIN=7.5,8.0,8.6 \
-    -D WITH_CUBLAS=1 \
-    -D BUILD_EXAMPLES=OFF \
-    -D INSTALL_PYTHON_EXAMPLES=OFF \
-    -D INSTALL_C_EXAMPLES=OFF \
-    -D PYTHON_EXECUTABLE=$(which python3) \
-    -D BUILD_opencv_python2=OFF \
-    .. && \
-    make -j$(nproc) && \
-    make install && \
-    ldconfig
-
-# Install Pangolin with NVIDIA support
-WORKDIR /opt
-RUN git clone --recursive https://github.com/stevenlovegrove/Pangolin.git && \
-    cd Pangolin && \
-    git checkout v0.6 && \
-    mkdir build && cd build && \
-    cmake -D CMAKE_BUILD_TYPE=Release \
-          -D BUILD_PANGOLIN_GUI=ON \
-          -D BUILD_PANGOLIN_OPENGL=ON \
-          .. && \
-    make -j$(nproc) && \
-    make install
-
-# Copy SLAM-Share source from previous build
-COPY . /slam-share/
-
-# Extract vocabulary
-WORKDIR /slam-share
-RUN cd Vocabulary && \
-    tar -xf ORBvoc.txt.tar.gz
-
-# Build DBoW2
-RUN cd Thirdparty/DBoW2 && \
-    mkdir -p build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
-    make -j$(nproc)
-
-# Build g2o
-RUN cd Thirdparty/g2o && \
-    mkdir -p build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
-    make -j$(nproc)
-
-# Build main SLAM-Share library
-RUN cd /slam-share && \
-    mkdir -p build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
-    make -j$(nproc)
-
-# Build ROS nodes with NVIDIA support
-RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
-    export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:\$ROS_PACKAGE_PATH && \
-    cd Examples/ROS/ORB_SLAM3 && \
-    mkdir -p build && cd build && \
-    cmake .. -DROS_BUILD_TYPE=Release && \
-    make -j\$(nproc)"
+# Update library cache
+RUN ldconfig
 
 # Set NVIDIA environment variables
 ENV NVIDIA_VISIBLE_DEVICES=all
@@ -188,8 +120,10 @@ RUN echo '#!/bin/bash' > /start-slam-nvidia.sh && \
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
 
-# Clean up
-RUN rm -rf /opt/opencv.zip /opt/opencv_contrib.zip /opt/opencv-4.10.0 /opt/opencv_contrib-4.10.0
+# Copy server configuration files
+RUN mkdir -p /slam-share-ros-server && \
+    cp /slam-share/Examples/ROS/ORB_SLAM3/Asus.yaml /slam-share-ros-server/config/ || \
+    mkdir -p /slam-share-ros-server/config
 
 WORKDIR /slam-share
 
