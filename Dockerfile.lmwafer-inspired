@@ -72,20 +72,13 @@ RUN echo "=== Building OpenCV (LMWafer Config) ===" && \
     ldconfig && \
     echo "OpenCV built successfully"
 
-# Upgrade CMake for modern Pangolin
-RUN echo "=== Upgrading CMake ===" && \
-    wget https://github.com/Kitware/CMake/releases/download/v3.20.0/cmake-3.20.0-Linux-x86_64.tar.gz && \
-    tar -xzf cmake-3.20.0-Linux-x86_64.tar.gz && \
-    cp -r cmake-3.20.0-Linux-x86_64/* /usr/local/ && \
-    rm -rf cmake-3.20.0* && \
-    cmake --version
-
-# Build Pangolin (compatible version for Ubuntu 18.04)
-RUN echo "=== Building Pangolin (v0.6 for compatibility) ===" && \
-    git clone --branch v0.6 --depth 1 https://github.com/stevenlovegrove/Pangolin.git && \
+# Build Pangolin (LMWafer's exact approach from Jan 2022)
+RUN echo "=== Building Pangolin (LMWafer Jan 2022 Config) ===" && \
+    git clone https://github.com/stevenlovegrove/Pangolin.git && \
     cd Pangolin && \
+    git checkout $(git rev-list -n 1 --before="2022-01-05" master) && \
     mkdir build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    cmake -D CMAKE_BUILD_TYPE=RELEASE -DCPP11_NO_BOOST=1 /dpds/Pangolin/ && \
     make -j4 && \
     make install && \
     ldconfig && \
