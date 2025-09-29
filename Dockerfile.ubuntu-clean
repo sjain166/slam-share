@@ -227,4 +227,22 @@ RUN echo '#!/bin/bash' > /start-slam-ubuntu.sh && \
 
 WORKDIR /slam-share
 
+# Apply permanent fixes at the very end (fast rebuild layer)
+RUN echo "=== Installing Xvfb and applying fixes ===" && \
+    # Install Xvfb for headless display
+    apt-get update && apt-get install -y xvfb && rm -rf /var/lib/apt/lists/* && \
+    # Fix shared memory allocation (10GB -> 64MB)
+    sed -i 's/10737418240/67108864/g' /slam-share/src/System.cc && \
+    # Disable viewer in ROS wrapper (true -> false)
+    sed -i 's/MONOCULAR,true/MONOCULAR,false/' /slam-share/Examples/ROS/ORB_SLAM3/src/ros_mono.cc && \
+    echo "Xvfb install and fixes applied successfully"
+
+# Rebuild only the affected components (fast)
+RUN echo "=== Rebuilding with fixes ===" && \
+    cd /slam-share/build && \
+    make -j$(nproc) && \
+    cd /slam-share/Examples/ROS/ORB_SLAM3/build && \
+    make -j$(nproc) && \
+    echo "Rebuild complete"
+
 CMD ["/start-slam-ubuntu.sh"]
