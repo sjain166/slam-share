@@ -69,13 +69,11 @@ RUN apt-get update && apt-get install -y \
     libglfw3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install SLAM-Share dependencies including OpenCV from ROS Noetic
+# Install SLAM-Share dependencies
 RUN apt-get update && apt-get install -y \
     libeigen3-dev \
     libboost-all-dev \
     libssl-dev \
-    libopencv-dev \
-    libopencv-contrib-dev \
     libpng-dev \
     libjpeg-dev \
     libtiff-dev \
@@ -84,9 +82,34 @@ RUN apt-get update && apt-get install -y \
     libswscale-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Verify OpenCV installation
+# Build OpenCV 4.10.0 with NVIDIA support (NO cuDNN) for compatibility
+RUN cd /tmp && \
+    wget -O opencv.zip https://github.com/opencv/opencv/archive/4.10.0.zip && \
+    wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.10.0.zip && \
+    unzip opencv.zip && unzip opencv_contrib.zip && \
+    mkdir -p opencv-4.10.0/build && cd opencv-4.10.0/build && \
+    cmake -D CMAKE_BUILD_TYPE=RELEASE \
+          -D CMAKE_INSTALL_PREFIX=/usr/local \
+          -D OPENCV_EXTRA_MODULES_PATH=/tmp/opencv_contrib-4.10.0/modules \
+          -D WITH_CUDA=ON \
+          -D WITH_CUBLAS=ON \
+          -D WITH_CUFFT=ON \
+          -D WITH_NVCUVID=ON \
+          -D WITH_OPENGL=ON \
+          -D WITH_GTK=ON \
+          -D OPENCV_DNN_CUDA=OFF \
+          -D OPENCV_ENABLE_NONFREE=ON \
+          -D BUILD_opencv_python3=OFF \
+          -D BUILD_EXAMPLES=OFF \
+          -D BUILD_TESTS=OFF \
+          -D BUILD_PERF_TESTS=OFF \
+          .. && \
+    make -j$(nproc) && make install && \
+    rm -rf /tmp/opencv*
+
+# Verify OpenCV 4.10 installation
 RUN echo "=== OpenCV Version Check ===" && \
-    pkg-config --modversion opencv4 || pkg-config --modversion opencv && \
+    pkg-config --modversion opencv4 && \
     echo "=== Available OpenCV Libraries ===" && \
     ldconfig -p | grep opencv | head -5
 
@@ -109,10 +132,10 @@ RUN echo "=== Building Pangolin from Source ===" && \
     cd / && rm -rf /tmp/Pangolin && \
     echo "=========================="
 
-# Set compilation flags (same as successful Dockerfile.base + additional warning suppression)
-ENV CXXFLAGS="-O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder -Wno-sign-compare -Wno-format-overflow"
-ENV CMAKE_C_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-format-overflow"
-ENV CMAKE_CXX_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder -Wno-sign-compare -Wno-format-overflow"
+# Set compilation flags (same as successful Dockerfile.base + additional warning suppression + error tolerance)
+ENV CXXFLAGS="-O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder -Wno-sign-compare -Wno-format-overflow -Wno-error -fpermissive"
+ENV CMAKE_C_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-format-overflow -Wno-error"
+ENV CMAKE_CXX_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder -Wno-sign-compare -Wno-format-overflow -Wno-error -fpermissive"
 
 # Copy SLAM-Share source code from local directory
 COPY . /slam-share/
