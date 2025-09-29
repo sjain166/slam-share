@@ -90,18 +90,24 @@ RUN echo "=== OpenCV Version Check ===" && \
     echo "=== Available OpenCV Libraries ===" && \
     ldconfig -p | grep opencv | head -5
 
-# Build and install Pangolin (required for SLAM visualization)
-RUN echo "=== Building Pangolin ===" && \
+# Build Pangolin from source (use stable v0.6 tag like successful build)
+RUN echo "=== Building Pangolin from Source ===" && \
     cd /tmp && \
-    git clone --recursive https://github.com/stevenlovegrove/Pangolin.git && \
+    # Clone Pangolin (use v0.6 tag - stable in 2021)
+    git clone --branch v0.6 --depth 1 https://github.com/stevenlovegrove/Pangolin.git && \
     cd Pangolin && \
     mkdir build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    # Configure with CMake
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_INSTALL_PREFIX=/usr/local \
+             -DBUILD_EXAMPLES=OFF && \
     make -j$(nproc) && \
     make install && \
+    # Update library cache
     ldconfig && \
-    rm -rf /tmp/Pangolin && \
-    echo "Pangolin installed successfully"
+    # Clean up source
+    cd / && rm -rf /tmp/Pangolin && \
+    echo "=========================="
 
 # Copy SLAM-Share source code from local directory
 COPY . /slam-share/
