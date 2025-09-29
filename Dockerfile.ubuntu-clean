@@ -116,15 +116,16 @@ RUN echo "=== OpenCV Version Check ===" && \
     echo "=== Available OpenCV Libraries ===" && \
     ldconfig -p | grep opencv | head -5
 
-# Build Pangolin from source (use stable v0.6 tag like successful build)
+# Build Pangolin from source (use v0.5 for better ORB-SLAM3 compatibility)
 RUN echo "=== Building Pangolin from Source ===" && \
     cd /tmp && \
-    git clone --branch v0.6 --depth 1 https://github.com/stevenlovegrove/Pangolin.git && \
+    git clone --branch v0.5 --depth 1 https://github.com/stevenlovegrove/Pangolin.git && \
     cd Pangolin && \
     mkdir build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release \
              -DCMAKE_INSTALL_PREFIX=/usr/local \
-             -DBUILD_EXAMPLES=OFF && \
+             -DBUILD_EXAMPLES=OFF \
+             -DCMAKE_CXX_STANDARD=14 && \
     make -j$(nproc) && \
     make install && \
     ldconfig && \
@@ -174,6 +175,7 @@ RUN echo "=== Building SLAM-Share Main Library ===" && \
     cd /slam-share && \
     mkdir -p build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_CXX_STANDARD=14 \
              -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
              -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" && \
     make -j$(nproc) && \

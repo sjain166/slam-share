@@ -1,0 +1,155 @@
+# SLAM-Share inspired by LMWafer's proven ORB-SLAM3 approach
+# Combines LMWafer's working strategies with ROS Noetic and SLAM-Share requirements
+FROM ubuntu:18.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Update and install basic dependencies (LMWafer approach)
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    # General usage
+    wget curl unzip software-properties-common apt-transport-https ca-certificates gnupg lsb-release \
+    # Compilation tools
+    build-essential cmake pkg-config git \
+    # OpenCV dependencies (LMWafer proven list)
+    libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev \
+    libtbb2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev libdc1394-22-dev \
+    # Pangolin dependencies (LMWafer proven list)
+    libgl1-mesa-dev libglew-dev libpython2.7-dev libpython3-dev python-numpy python3-numpy \
+    # Additional dependencies
+    libeigen3-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install ROS Melodic (compatible with Ubuntu 18.04 and proven with SLAM systems)
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' && \
+    apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 && \
+    apt-get update && \
+    apt-get install -y \
+        ros-melodic-desktop-full \
+        ros-melodic-roscpp \
+        ros-melodic-tf \
+        ros-melodic-cv-bridge \
+        ros-melodic-image-transport \
+        ros-melodic-sensor-msgs \
+        python-rosdep \
+        python-rosinstall \
+        python-rosinstall-generator \
+        python-wstool \
+        python-catkin-tools && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Initialize rosdep
+RUN rosdep init && rosdep update
+
+# Setup ROS environment
+RUN echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc
+ENV ROS_MASTER_URI=http://localhost:11311
+ENV ROS_HOSTNAME=localhost
+ENV ROS_DISTRO=melodic
+
+# Create dependencies directory (LMWafer approach)
+WORKDIR /dpds
+
+# Build OpenCV (LMWafer proven configuration - KEY: WITH_OPENGL=OFF)
+RUN echo "=== Building OpenCV (LMWafer Config) ===" && \
+    git clone https://github.com/Itseez/opencv.git && \
+    cd opencv && \
+    mkdir build && cd build && \
+    cmake -D CMAKE_BUILD_TYPE=RELEASE \
+          -D CMAKE_INSTALL_PREFIX=/usr/local \
+          -D BUILD_TIFF=ON \
+          -D WITH_CUDA=OFF \
+          -D ENABLE_AVX=OFF \
+          -D WITH_OPENGL=OFF \
+          -D BUILD_TESTS=OFF \
+          -D BUILD_PERF_TESTS=OFF \
+          -D BUILD_EXAMPLES=OFF \
+          -D OPENCV_GENERATE_PKGCONFIG=ON \
+          .. && \
+    make -j4 && \
+    make install && \
+    ldconfig && \
+    echo "OpenCV built successfully"
+
+# Build Pangolin (LMWafer approach - no specific version)
+RUN echo "=== Building Pangolin (LMWafer Config) ===" && \
+    git clone https://github.com/stevenlovegrove/Pangolin.git && \
+    cd Pangolin && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j4 && \
+    make install && \
+    ldconfig && \
+    echo "Pangolin built successfully"
+
+# Copy SLAM-Share source
+COPY . /slam-share/
+WORKDIR /slam-share
+
+# Extract vocabulary
+RUN echo "=== Extracting ORB Vocabulary ===" && \
+    cd Vocabulary && \
+    tar -xf ORBvoc.txt.tar.gz && \
+    echo "Vocabulary extracted successfully"
+
+# Build DBoW2 (LMWafer approach)
+RUN echo "=== Building DBoW2 ===" && \
+    cd Thirdparty/DBoW2 && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j4 && \
+    echo "DBoW2 built successfully"
+
+# Build g2o (LMWafer approach)
+RUN echo "=== Building g2o ===" && \
+    cd Thirdparty/g2o && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j4 && \
+    echo "g2o built successfully"
+
+# Build main SLAM-Share library
+RUN echo "=== Building SLAM-Share Main Library ===" && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j4 && \
+    echo "SLAM-Share library built successfully"
+
+# Build ROS nodes (with ROS Melodic)
+RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && \
+    export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:\$ROS_PACKAGE_PATH && \
+    cd Examples/ROS/ORB_SLAM3 && \
+    mkdir -p build && cd build && \
+    cmake .. -DROS_BUILD_TYPE=Release && \
+    make -j4"
+
+# Set NVIDIA environment for runtime GPU access
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute
+ENV QT_X11_NO_MITSHM=1
+
+# Copy server configuration files
+RUN mkdir -p /slam-share-ros-server/config && \
+    cp /slam-share/Examples/ROS/ORB_SLAM3/Asus.yaml /slam-share-ros-server/config/ && \
+    cp /slam-share/Examples/Monocular/EuRoC.yaml /slam-share-ros-server/config/
+
+# Create LMWafer-inspired startup script
+RUN echo '#!/bin/bash' > /start-slam-lmwafer.sh && \
+    echo 'echo "=== SLAM-Share LMWafer-Inspired Server ==="' >> /start-slam-lmwafer.sh && \
+    echo 'source /opt/ros/melodic/setup.bash' >> /start-slam-lmwafer.sh && \
+    echo 'export ROS_MASTER_URI=http://slam-server:11311' >> /start-slam-lmwafer.sh && \
+    echo 'export ROS_HOSTNAME=slam-server' >> /start-slam-lmwafer.sh && \
+    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /start-slam-lmwafer.sh && \
+    echo 'export DISPLAY=$DISPLAY' >> /start-slam-lmwafer.sh && \
+    echo 'echo "🚀 Starting ROS Master..."' >> /start-slam-lmwafer.sh && \
+    echo 'rosmaster --core -p 11311 &' >> /start-slam-lmwafer.sh && \
+    echo 'sleep 15' >> /start-slam-lmwafer.sh && \
+    echo 'echo "🎯 Starting SLAM (LMWafer config)..."' >> /start-slam-lmwafer.sh && \
+    echo 'cd /slam-share/Examples/ROS/ORB_SLAM3' >> /start-slam-lmwafer.sh && \
+    echo 'rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-server/config/Asus.yaml' >> /start-slam-lmwafer.sh && \
+    chmod +x /start-slam-lmwafer.sh
+
+WORKDIR /slam-share
+
+CMD ["/start-slam-lmwafer.sh"]
