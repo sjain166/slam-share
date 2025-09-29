@@ -1,0 +1,112 @@
+FROM slam-share-ros-server:latest
+
+# Install complete GUI stack for OpenCV and Pangolin
+RUN apt-get update && apt-get install -y \
+    # X11 and OpenGL core libraries
+    libx11-dev libxext-dev libxrender-dev libxinerama-dev libxi-dev \
+    libxrandr-dev libxcursor-dev libxdamage-dev libxcomposite-dev \
+    libxtst-dev libxss-dev libxft-dev libxmu-dev libxpm-dev \
+    # OpenGL and Mesa drivers
+    libgl1-mesa-dev libgl1-mesa-glx libglu1-mesa-dev \
+    mesa-utils mesa-common-dev libegl1-mesa-dev \
+    # GTK for OpenCV GUI backend
+    libgtk-3-dev libgtk2.0-dev libglib2.0-dev \
+    # OpenCV additional GUI dependencies
+    libopencv-dev libopencv-contrib-dev \
+    libavcodec-dev libavformat-dev libswscale-dev \
+    # Pangolin dependencies
+    libglew-dev libeigen3-dev libboost-all-dev \
+    libpng-dev libjpeg-dev libtiff-dev \
+    # Cairo and Pango for rendering
+    libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev \
+    libatk1.0-dev libgtk-3-dev \
+    # Font rendering
+    fontconfig libfontconfig1-dev \
+    # Virtual display and VNC
+    xvfb x11vnc fluxbox \
+    # Additional OpenGL utilities
+    freeglut3-dev libglfw3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set GUI environment variables for proper rendering
+ENV DISPLAY=:1
+ENV QT_X11_NO_MITSHM=1
+ENV LIBGL_ALWAYS_SOFTWARE=1
+ENV MESA_GL_VERSION_OVERRIDE=3.3
+ENV GALLIUM_DRIVER=llvmpipe
+ENV LP_NO_RAST=false
+ENV LP_NUM_THREADS=1
+
+# Create comprehensive startup script
+RUN echo '#!/bin/bash' > /start-slam-gui.sh && \
+    echo 'echo "=== Starting SLAM-Share GUI Server ==="' >> /start-slam-gui.sh && \
+    echo '' >> /start-slam-gui.sh && \
+    echo '# Source ROS environment' >> /start-slam-gui.sh && \
+    echo 'source /opt/ros/noetic/setup.bash' >> /start-slam-gui.sh && \
+    echo 'export ROS_MASTER_URI=http://slam-server:11311' >> /start-slam-gui.sh && \
+    echo 'export ROS_HOSTNAME=slam-server' >> /start-slam-gui.sh && \
+    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /start-slam-gui.sh && \
+    echo '' >> /start-slam-gui.sh && \
+    echo '# Set up display environment' >> /start-slam-gui.sh && \
+    echo 'export DISPLAY=$DISPLAY' >> /start-slam-gui.sh && \
+    echo 'export LIBGL_ALWAYS_SOFTWARE=1' >> /start-slam-gui.sh && \
+    echo 'export QT_X11_NO_MITSHM=1' >> /start-slam-gui.sh && \
+    echo '' >> /start-slam-gui.sh && \
+    echo '# Start ROS Master' >> /start-slam-gui.sh && \
+    echo 'echo "🚀 Starting ROS Master..."' >> /start-slam-gui.sh && \
+    echo 'rosmaster --core -p 11311 &' >> /start-slam-gui.sh && \
+    echo 'sleep 15' >> /start-slam-gui.sh && \
+    echo '' >> /start-slam-gui.sh && \
+    echo '# Start virtual display if DISPLAY=:1' >> /start-slam-gui.sh && \
+    echo 'if [ "$DISPLAY" = ":1" ]; then' >> /start-slam-gui.sh && \
+    echo '    echo "🖥️  Starting virtual display..."' >> /start-slam-gui.sh && \
+    echo '    Xvfb :1 -screen 0 1024x768x24 -ac +extension GLX +render -noreset &' >> /start-slam-gui.sh && \
+    echo '    sleep 5' >> /start-slam-gui.sh && \
+    echo '    echo "✅ Virtual display ready"' >> /start-slam-gui.sh && \
+    echo 'else' >> /start-slam-gui.sh && \
+    echo '    echo "🖥️  Using external display: $DISPLAY"' >> /start-slam-gui.sh && \
+    echo 'fi' >> /start-slam-gui.sh && \
+    echo '' >> /start-slam-gui.sh && \
+    echo '# Test OpenGL' >> /start-slam-gui.sh && \
+    echo 'echo "🔍 Testing OpenGL..."' >> /start-slam-gui.sh && \
+    echo 'glxinfo | head -10 || echo "⚠️  OpenGL test failed, continuing..."' >> /start-slam-gui.sh && \
+    echo '' >> /start-slam-gui.sh && \
+    echo '# Start SLAM with full GUI support' >> /start-slam-gui.sh && \
+    echo 'echo "🎯 Starting SLAM with GUI support..."' >> /start-slam-gui.sh && \
+    echo 'cd /slam-share/Examples/ROS/ORB_SLAM3' >> /start-slam-gui.sh && \
+    echo 'echo "📁 Working directory: $(pwd)"' >> /start-slam-gui.sh && \
+    echo 'echo "🔗 ROS_MASTER_URI: $ROS_MASTER_URI"' >> /start-slam-gui.sh && \
+    echo 'echo "🖥️  DISPLAY: $DISPLAY"' >> /start-slam-gui.sh && \
+    echo 'echo "🚀 Launching ORB-SLAM3..."' >> /start-slam-gui.sh && \
+    echo '' >> /start-slam-gui.sh && \
+    echo '# Run SLAM with error handling' >> /start-slam-gui.sh && \
+    echo 'rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-server/config/Asus.yaml || {' >> /start-slam-gui.sh && \
+    echo '    echo "❌ SLAM failed to start"' >> /start-slam-gui.sh && \
+    echo '    echo "📋 System info:"' >> /start-slam-gui.sh && \
+    echo '    echo "   - OpenGL: $(glxinfo | grep "OpenGL version" || echo "N/A")"' >> /start-slam-gui.sh && \
+    echo '    echo "   - Display: $DISPLAY"' >> /start-slam-gui.sh && \
+    echo '    echo "   - GTK: $(pkg-config --modversion gtk+-3.0 || echo "N/A")"' >> /start-slam-gui.sh && \
+    echo '    tail -f /dev/null' >> /start-slam-gui.sh && \
+    echo '}' >> /start-slam-gui.sh && \
+    chmod +x /start-slam-gui.sh
+
+# Create alternative headless startup script
+RUN echo '#!/bin/bash' > /start-slam-headless.sh && \
+    echo 'source /opt/ros/noetic/setup.bash' >> /start-slam-headless.sh && \
+    echo 'export ROS_MASTER_URI=http://slam-server:11311' >> /start-slam-headless.sh && \
+    echo 'export ROS_HOSTNAME=slam-server' >> /start-slam-headless.sh && \
+    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /start-slam-headless.sh && \
+    echo 'export DISPLAY=' >> /start-slam-headless.sh && \
+    echo 'export PANGOLIN_WINDOW_URI=headless://' >> /start-slam-headless.sh && \
+    echo 'rosmaster --core -p 11311 &' >> /start-slam-headless.sh && \
+    echo 'sleep 15' >> /start-slam-headless.sh && \
+    echo 'cd /slam-share/Examples/ROS/ORB_SLAM3' >> /start-slam-headless.sh && \
+    echo 'echo "Starting SLAM in headless mode..."' >> /start-slam-headless.sh && \
+    echo 'rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-server/config/Asus.yaml' >> /start-slam-headless.sh && \
+    chmod +x /start-slam-headless.sh
+
+# Set working directory
+WORKDIR /slam-share
+
+# Default to GUI mode
+CMD ["/start-slam-gui.sh"]
