@@ -1,6 +1,6 @@
-# SLAM-Share Clean NVIDIA Build
-# Complete build from scratch with NVIDIA GPU support
-FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
+# SLAM-Share Clean Ubuntu 20.04 Build
+# Fast build using proven Dockerfile.base approach with NVIDIA runtime support
+FROM ubuntu:20.04
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
@@ -48,10 +48,12 @@ ENV ROS_MASTER_URI=http://localhost:11311
 ENV ROS_HOSTNAME=localhost
 ENV ROS_DISTRO=noetic
 
-# Install NVIDIA OpenGL and EGL libraries
+# Install OpenGL and X11 libraries for visualization (NVIDIA runtime compatible)
 RUN apt-get update && apt-get install -y \
-    # NVIDIA OpenGL libraries
+    # OpenGL libraries
     libgl1-mesa-glx \
+    libgl1-mesa-dev \
+    libglu1-mesa-dev \
     libegl1-mesa \
     libgles2-mesa \
     # X11 and OpenGL development
@@ -82,7 +84,7 @@ RUN apt-get update && apt-get install -y \
     libswscale-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Build OpenCV 4.10.0 from source (same config as successful Dockerfile.base)
+# Build OpenCV 4.10.0 from source (EXACT same config as successful Dockerfile.base)
 RUN cd /tmp && \
     wget -O opencv.zip https://github.com/opencv/opencv/archive/4.10.0.zip && \
     wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.10.0.zip && \
@@ -117,23 +119,19 @@ RUN echo "=== OpenCV Version Check ===" && \
 # Build Pangolin from source (use stable v0.6 tag like successful build)
 RUN echo "=== Building Pangolin from Source ===" && \
     cd /tmp && \
-    # Clone Pangolin (use v0.6 tag - stable in 2021)
     git clone --branch v0.6 --depth 1 https://github.com/stevenlovegrove/Pangolin.git && \
     cd Pangolin && \
     mkdir build && cd build && \
-    # Configure with CMake
     cmake .. -DCMAKE_BUILD_TYPE=Release \
              -DCMAKE_INSTALL_PREFIX=/usr/local \
              -DBUILD_EXAMPLES=OFF && \
     make -j$(nproc) && \
     make install && \
-    # Update library cache
     ldconfig && \
-    # Clean up source
     cd / && rm -rf /tmp/Pangolin && \
     echo "=========================="
 
-# Set compilation flags (same as successful Dockerfile.base + additional warning suppression + error tolerance)
+# Set compilation flags (same as successful builds)
 ENV CXXFLAGS="-O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder -Wno-sign-compare -Wno-format-overflow -Wno-error -fpermissive"
 ENV CMAKE_C_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-format-overflow -Wno-error"
 ENV CMAKE_CXX_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder -Wno-sign-compare -Wno-format-overflow -Wno-error -fpermissive"
@@ -181,7 +179,7 @@ RUN echo "=== Building SLAM-Share Main Library ===" && \
     make -j$(nproc) && \
     echo "SLAM-Share library built successfully"
 
-# Build ROS nodes with Noetic (including MonoAR - should work with OpenCV 4.x)
+# Build ROS nodes with Noetic
 RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
     export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:\$ROS_PACKAGE_PATH && \
     cd Examples/ROS/ORB_SLAM3 && \
@@ -191,7 +189,7 @@ RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
              -DCMAKE_CXX_FLAGS=\"\$CMAKE_CXX_FLAGS\" && \
     make -j\$(nproc)"
 
-# Set NVIDIA environment variables
+# Set NVIDIA environment variables for runtime GPU access
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute
 ENV QT_X11_NO_MITSHM=1
@@ -207,26 +205,24 @@ RUN mkdir -p /slam-share-ros-server/config && \
     echo "Available config files:" && \
     ls -la /slam-share-ros-server/config/
 
-# Create NVIDIA-optimized startup script
-RUN echo '#!/bin/bash' > /start-slam-nvidia.sh && \
-    echo 'echo "=== SLAM-Share NVIDIA GPU Server ===\"' >> /start-slam-nvidia.sh && \
-    echo 'source /opt/ros/noetic/setup.bash' >> /start-slam-nvidia.sh && \
-    echo 'export ROS_MASTER_URI=http://slam-server:11311' >> /start-slam-nvidia.sh && \
-    echo 'export ROS_HOSTNAME=slam-server' >> /start-slam-nvidia.sh && \
-    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /start-slam-nvidia.sh && \
-    echo 'export DISPLAY=$DISPLAY' >> /start-slam-nvidia.sh && \
-    echo 'echo "🚀 Starting ROS Master..."' >> /start-slam-nvidia.sh && \
-    echo 'rosmaster --core -p 11311 &' >> /start-slam-nvidia.sh && \
-    echo 'sleep 15' >> /start-slam-nvidia.sh && \
-    echo 'echo "🎮 GPU Info:"' >> /start-slam-nvidia.sh && \
-    echo 'nvidia-smi || echo "NVIDIA GPU not available"' >> /start-slam-nvidia.sh && \
-    echo 'echo "🖥️  OpenGL Info:"' >> /start-slam-nvidia.sh && \
-    echo 'glxinfo | head -10 || echo "OpenGL not available"' >> /start-slam-nvidia.sh && \
-    echo 'echo "🎯 Starting SLAM with NVIDIA acceleration..."' >> /start-slam-nvidia.sh && \
-    echo 'cd /slam-share/Examples/ROS/ORB_SLAM3' >> /start-slam-nvidia.sh && \
-    echo 'rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-server/config/Asus.yaml' >> /start-slam-nvidia.sh && \
-    chmod +x /start-slam-nvidia.sh
+# Create optimized startup script
+RUN echo '#!/bin/bash' > /start-slam-ubuntu.sh && \
+    echo 'echo "=== SLAM-Share Ubuntu GPU Server ==="' >> /start-slam-ubuntu.sh && \
+    echo 'source /opt/ros/noetic/setup.bash' >> /start-slam-ubuntu.sh && \
+    echo 'export ROS_MASTER_URI=http://slam-server:11311' >> /start-slam-ubuntu.sh && \
+    echo 'export ROS_HOSTNAME=slam-server' >> /start-slam-ubuntu.sh && \
+    echo 'export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:$ROS_PACKAGE_PATH' >> /start-slam-ubuntu.sh && \
+    echo 'export DISPLAY=$DISPLAY' >> /start-slam-ubuntu.sh && \
+    echo 'echo "🚀 Starting ROS Master..."' >> /start-slam-ubuntu.sh && \
+    echo 'rosmaster --core -p 11311 &' >> /start-slam-ubuntu.sh && \
+    echo 'sleep 15' >> /start-slam-ubuntu.sh && \
+    echo 'echo "🖥️  OpenGL Info:"' >> /start-slam-ubuntu.sh && \
+    echo 'glxinfo | head -10 || echo "OpenGL not available"' >> /start-slam-ubuntu.sh && \
+    echo 'echo "🎯 Starting SLAM with GPU acceleration..."' >> /start-slam-ubuntu.sh && \
+    echo 'cd /slam-share/Examples/ROS/ORB_SLAM3' >> /start-slam-ubuntu.sh && \
+    echo 'rosrun ORB_SLAM3 Mono /slam-share/Vocabulary/ORBvoc.txt /slam-share-ros-server/config/Asus.yaml' >> /start-slam-ubuntu.sh && \
+    chmod +x /start-slam-ubuntu.sh
 
 WORKDIR /slam-share
 
-CMD ["/start-slam-nvidia.sh"]
+CMD ["/start-slam-ubuntu.sh"]
