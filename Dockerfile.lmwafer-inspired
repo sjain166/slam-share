@@ -17,6 +17,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libtbb2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev libdc1394-22-dev \
     # Pangolin dependencies (LMWafer proven list)
     libgl1-mesa-dev libglew-dev libpython2.7-dev libpython3-dev python-numpy python3-numpy \
+    # Additional Pangolin 2022 dependencies
+    libxkbcommon-dev \
     # Additional dependencies
     libeigen3-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
