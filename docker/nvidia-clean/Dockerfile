@@ -69,11 +69,13 @@ RUN apt-get update && apt-get install -y \
     libglfw3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install SLAM-Share dependencies
+# Install SLAM-Share dependencies including OpenCV from ROS Noetic
 RUN apt-get update && apt-get install -y \
     libeigen3-dev \
     libboost-all-dev \
     libssl-dev \
+    libopencv-dev \
+    libopencv-contrib-dev \
     libpng-dev \
     libjpeg-dev \
     libtiff-dev \
@@ -82,37 +84,64 @@ RUN apt-get update && apt-get install -y \
     libswscale-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Build OpenCV 4.10.0 with NVIDIA support (NO cuDNN)
-RUN cd /tmp && \
-    wget -O opencv.zip https://github.com/opencv/opencv/archive/4.10.0.zip && \
-    wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.10.0.zip && \
-    unzip opencv.zip && unzip opencv_contrib.zip && \
-    mkdir -p opencv-4.10.0/build && cd opencv-4.10.0/build && \
-    cmake -D CMAKE_BUILD_TYPE=RELEASE \
-          -D CMAKE_INSTALL_PREFIX=/usr/local \
-          -D OPENCV_EXTRA_MODULES_PATH=/tmp/opencv_contrib-4.10.0/modules \
-          -D WITH_CUDA=ON \
-          -D WITH_CUBLAS=ON \
-          -D WITH_CUFFT=ON \
-          -D WITH_NVCUVID=ON \
-          -D WITH_OPENGL=ON \
-          -D WITH_GTK=ON \
-          -D OPENCV_DNN_CUDA=OFF \
-          -D OPENCV_ENABLE_NONFREE=ON \
-          -D BUILD_opencv_python3=OFF \
-          -D BUILD_EXAMPLES=OFF \
-          -D BUILD_TESTS=OFF \
-          -D BUILD_PERF_TESTS=OFF \
-          .. && \
-    make -j$(nproc) && make install && \
-    rm -rf /tmp/opencv*
+# Verify OpenCV installation
+RUN echo "=== OpenCV Version Check ===" && \
+    pkg-config --modversion opencv4 || pkg-config --modversion opencv && \
+    echo "=== Available OpenCV Libraries ===" && \
+    ldconfig -p | grep opencv | head -5
 
 # Copy SLAM-Share source code from local directory
-COPY . /slam-share
+COPY . /slam-share/
 
-# Build SLAM-Share
+# Extract vocabulary (as per owner's build.sh)
+RUN echo "=== Extracting ORB Vocabulary ===" && \
+    cd /slam-share/Vocabulary && \
+    tar -xf ORBvoc.txt.tar.gz && \
+    echo "Vocabulary extracted successfully" && \
+    echo "=========================="
+
+# Build dependencies first (same as successful original build)
 WORKDIR /slam-share
-RUN chmod +x build.sh && ./build.sh
+
+# Build DBoW2
+RUN echo "=== Building DBoW2 ===" && \
+    cd Thirdparty/DBoW2 && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
+             -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" && \
+    make -j$(nproc) && \
+    echo "DBoW2 built successfully"
+
+# Build g2o
+RUN echo "=== Building g2o ===" && \
+    cd Thirdparty/g2o && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
+             -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" && \
+    make -j$(nproc) && \
+    echo "g2o built successfully"
+
+# Build main SLAM-Share library
+RUN echo "=== Building SLAM-Share Main Library ===" && \
+    cd /slam-share && \
+    mkdir -p build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" \
+             -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" && \
+    make -j$(nproc) && \
+    echo "SLAM-Share library built successfully"
+
+# Build ROS nodes with Noetic (including MonoAR - should work with OpenCV 4.x)
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
+    export ROS_PACKAGE_PATH=/slam-share/Examples/ROS/ORB_SLAM3:\$ROS_PACKAGE_PATH && \
+    cd Examples/ROS/ORB_SLAM3 && \
+    mkdir -p build && cd build && \
+    cmake .. -DROS_BUILD_TYPE=Release \
+             -DCMAKE_C_FLAGS=\"\$CMAKE_C_FLAGS\" \
+             -DCMAKE_CXX_FLAGS=\"\$CMAKE_CXX_FLAGS\" && \
+    make -j\$(nproc)"
 
 # Set NVIDIA environment variables
 ENV NVIDIA_VISIBLE_DEVICES=all
