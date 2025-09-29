@@ -116,10 +116,10 @@ RUN echo "=== OpenCV Version Check ===" && \
     echo "=== Available OpenCV Libraries ===" && \
     ldconfig -p | grep opencv | head -5
 
-# Build Pangolin from source (use v0.5 for better ORB-SLAM3 compatibility)
+# Build Pangolin from source (use v0.6 for Ubuntu 20.04 compatibility)
 RUN echo "=== Building Pangolin from Source ===" && \
     cd /tmp && \
-    git clone --branch v0.5 --depth 1 https://github.com/stevenlovegrove/Pangolin.git && \
+    git clone --branch v0.6 --depth 1 https://github.com/stevenlovegrove/Pangolin.git && \
     cd Pangolin && \
     mkdir build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release \
