@@ -83,37 +83,27 @@ RUN apt-get update && apt-get install -y \
     libswscale-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy working SLAM-Share build from previous successful image
-COPY --from=slam-share-ros-server:latest /slam-share /slam-share
-COPY --from=slam-share-ros-server:latest /usr/local/lib /usr/local/lib
-COPY --from=slam-share-ros-server:latest /usr/local/include /usr/local/include
+# Copy SLAM-Share source code only (not pre-built binaries)
+COPY --from=slam-share-ros-server:latest /slam-share/src /slam-share/src
+COPY --from=slam-share-ros-server:latest /slam-share/include /slam-share/include
+COPY --from=slam-share-ros-server:latest /slam-share/Thirdparty /slam-share/Thirdparty
+COPY --from=slam-share-ros-server:latest /slam-share/Examples /slam-share/Examples
+COPY --from=slam-share-ros-server:latest /slam-share/Vocabulary /slam-share/Vocabulary
+COPY --from=slam-share-ros-server:latest /slam-share/CMakeLists.txt /slam-share/
+COPY --from=slam-share-ros-server:latest /slam-share/build.sh /slam-share/
 
-# Create OpenCV library symlinks for version compatibility
-RUN cd /usr/local/lib && \
-    # Create symlinks for libopencv_highgui and all OpenCV libraries
-    for lib in libopencv_*.so.4.10.0; do \
-        if [ -f "$lib" ]; then \
-            base=$(echo $lib | sed 's/\.so\.4\.10\.0//'); \
-            ln -sf $lib ${base}.so.410 2>/dev/null || true; \
-            ln -sf $lib ${base}.so.4.10 2>/dev/null || true; \
-            ln -sf $lib ${base}.so.4 2>/dev/null || true; \
-        fi \
-    done && \
-    # Also check system paths and create symlinks
-    cd /usr/lib/x86_64-linux-gnu && \
-    for lib in libopencv_*.so.*; do \
-        if [ -f "$lib" ]; then \
-            base=$(echo $lib | sed 's/\.so\..*//'); \
-            ln -sf $lib ${base}.so.410 2>/dev/null || true; \
-        fi \
-    done
+# Use system OpenCV from ROS Noetic (compatible with NVIDIA)
+RUN echo "=== OpenCV Version Check ===" && \
+    pkg-config --modversion opencv4 || pkg-config --modversion opencv && \
+    echo "=== Available OpenCV Libraries ===" && \
+    ldconfig -p | grep opencv | head -10
 
-# Update library cache and verify OpenCV installation
-RUN ldconfig && \
-    echo "=== OpenCV Library Check ===" && \
-    ldconfig -p | grep opencv | head -10 && \
-    echo "=== Library Paths ===" && \
-    find /usr -name "*opencv_highgui*" -type f 2>/dev/null
+# Build SLAM-Share with NVIDIA-compatible OpenCV
+WORKDIR /slam-share
+RUN echo "Building SLAM-Share with NVIDIA OpenCV..." && \
+    chmod +x build.sh && \
+    ./build.sh && \
+    echo "Build completed successfully"
 
 # Set NVIDIA environment variables
 ENV NVIDIA_VISIBLE_DEVICES=all
