@@ -145,9 +145,11 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
 
 # Copy server configuration files
-RUN mkdir -p /slam-share-ros-server && \
-    cp /slam-share/Examples/ROS/ORB_SLAM3/Asus.yaml /slam-share-ros-server/config/ || \
-    mkdir -p /slam-share-ros-server/config
+RUN mkdir -p /slam-share-ros-server/config && \
+    cp /slam-share/Examples/ROS/ORB_SLAM3/Asus.yaml /slam-share-ros-server/config/ && \
+    cp /slam-share/Examples/Monocular/EuRoC.yaml /slam-share-ros-server/config/ && \
+    echo "Available config files:" && \
+    ls -la /slam-share-ros-server/config/
 
 WORKDIR /slam-share
 
