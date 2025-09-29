@@ -109,10 +109,10 @@ RUN echo "=== Building Pangolin from Source ===" && \
     cd / && rm -rf /tmp/Pangolin && \
     echo "=========================="
 
-# Set compilation flags (same as successful Dockerfile.base)
-ENV CXXFLAGS="-O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder"
-ENV CMAKE_C_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized"
-ENV CMAKE_CXX_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder"
+# Set compilation flags (same as successful Dockerfile.base + additional warning suppression)
+ENV CXXFLAGS="-O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder -Wno-sign-compare -Wno-format-overflow"
+ENV CMAKE_C_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-format-overflow"
+ENV CMAKE_CXX_FLAGS="-Wall -O3 -march=native -Wno-deprecated-declarations -Wno-maybe-uninitialized -Wno-reorder -Wno-sign-compare -Wno-format-overflow"
 
 # Copy SLAM-Share source code from local directory
 COPY . /slam-share/
